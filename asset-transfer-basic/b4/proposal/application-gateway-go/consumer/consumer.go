@@ -27,6 +27,7 @@ func AllConsumers(start time.Time, auctionSpeed int interval int) {
 	fmt.Println(startTime)
 	speed = auctionSpeed
 	auctionInterval = time.Duration(interval)
+	// grpc
 	consumer("consumer1", 1, 100000, 1000, 8, 1)
 
 }

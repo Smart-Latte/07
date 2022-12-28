@@ -21,7 +21,7 @@ type Energy struct {
 	UnitPrice        float64   `json:"Unit Price"`
 	BidPrice         float64   `json:"Bid Price"`
 	GeneratedTime    int64 `json:"Generated Time"`
-	AuctionStartTime int64 `json"Auction Start Time"`
+	AuctionStartTime int64 `json:"Auction Start Time"`
 	BidTime          int64 `json:"Bid Time"`
 	ID               string    `json:"ID"`
 	LargeCategory    string    `json:"LargeCategory"`
@@ -120,7 +120,7 @@ func (s *SmartContract) CreateToken(ctx contractapi.TransactionContextInterface,
 	if exists {
 		return &energy, fmt.Errorf("the energy %s already exists", id)
 	}
-
+	
 	energy = Energy{
 		DocType:          "token",
 		ID:               id,
@@ -274,7 +274,7 @@ func (s *SmartContract) AuctionEnd(ctx contractapi.TransactionContextInterface, 
 		if auctionStartTimeCompare >= energy.AuctionStartTime {
 			if energy.Owner == energy.Producer {
 				energy.AuctionStartTime = timestamp
-				returnMessage = "the energy " + id + " was generated more than 5min ago. The Action Start Time was updated."
+				returnMessage = fmt.Sprintf("the energy %v was generated more than %vmin ago. The Auction Start Time was updated.", id, auctionInterval)
 			}else{
 				energy.Status = "sold"
 				returnMessage = "the energy " + id + " was sold"
@@ -329,7 +329,6 @@ func (s *SmartContract) UpdateToken(ctx contractapi.TransactionContextInterface,
 	}
 
 	return ctx.GetStub().PutState(energy.ID, energyJSON)
-
 }
 
 func (s *SmartContract) QueryByStatus(ctx contractapi.TransactionContextInterface, status string, owner string) ([]*Energy, error) {
@@ -337,84 +336,46 @@ func (s *SmartContract) QueryByStatus(ctx contractapi.TransactionContextInterfac
 	"use_index":["_design/indexStatusDoc","indexStatus"]}`, status, owner)
 	// queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, owner)
 
-	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
-	if err != nil {
-		return nil, err
-	}
-	defer resultsIterator.Close()
+	energies, err := s.Query(ctx, queryString)
 
-	var energies []*Energy
-	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		var energy Energy
-		err = json.Unmarshal(queryResponse.Value, &energy)
-		if err != nil {
-			return nil, err
-		}
-		energies = append(energies, &energy)
-	}
-
-	return energies, nil
+	return energies, err
 }
 
-func (s *SmartContract) QueryByUserAndTime(ctx contractapi.TransactionContextInterface, owner string, status string, startTime int64, endTime int64) ([]*Energy, error) {
+func (s *SmartContract) QueryByUserAndBidTime(ctx contractapi.TransactionContextInterface, owner string, status string, startTime int64, endTime int64) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Owner":"%s", "Status":"%s","Bid Time":{"$gte":%d,"$lte":%d}},
-	"use_index":["_design/indexUserAndTimeDoc","indexUserAndTime"]}`, owner, status, startTime, endTime)
+	"use_index":["_design/indexUserAndBidTimeDoc","indexUserAndBidTime"]}`, owner, status, startTime, endTime)
 
-	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
-	if err != nil {
-		return nil, err
-	}
-	defer resultsIterator.Close()
+	energies, err := s.Query(ctx, queryString)
 
-	var energies []*Energy
-	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		var energy Energy
-		err = json.Unmarshal(queryResponse.Value, &energy)
-		if err != nil {
-			return nil, err
-		}
-		energies = append(energies, &energy)
-	}
-
-	return energies, nil
+	return energies, err
 }
+
+func (s *SmartContract) QueryByUserAndGeneratedTime(ctx contractapi.TransactionContextInterface, producer string, timestamp int64) ([]*Energy, error) {
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Producer":"%s","Generated Time":%d},
+	"use_index":["_design/indexUserAndGeneratedTimeDoc","indexUserAndGeneratedTime"]}`, producer, timestamp)
+	
+	energies, err := s.Query(ctx, queryString)
+
+	return energies, err
+}
+
+func (s *SmartContract) QueryByUserAndTime(ctx contractapi.TransactionContextInterface, producer string, startTime int64, endTime int64) ([]*Energy, error) {
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Producer":"%s","Generated Time":{"$gte":%d,"$lte":%d}},
+	"use_index":["_design/indexUserAndGeneratedTimeDoc","indexUserAndGeneratedTime"]}`, producer, startTime, endTime)
+
+	energies, err := s.Query(ctx, queryString)
+
+	return energies, err
+}
+
 
 func (s *SmartContract) QueryByUserAndStatus(ctx contractapi.TransactionContextInterface, owner string, status string) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Owner":"%s", "Status":"%s"},
 	"use_index":["_design/indexUserAndStatusDoc","indexUserAndStatus"]}`, owner, status)
 
-	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
-	if err != nil {
-		return nil, err
-	}
-	defer resultsIterator.Close()
+	energies, err := s.Query(ctx, queryString)
 
-	var energies []*Energy
-	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		var energy Energy
-		err = json.Unmarshal(queryResponse.Value, &energy)
-		if err != nil {
-			return nil, err
-		}
-		energies = append(energies, &energy)
-	}
-
-	return energies, nil
+	return energies, err
 }
 
 func (s *SmartContract) QueryByLocationRange(ctx contractapi.TransactionContextInterface,
@@ -424,12 +385,13 @@ func (s *SmartContract) QueryByLocationRange(ctx contractapi.TransactionContextI
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Status":"%s", "Owner":{"$ne":"%s"},
 	"Latitude":{"$gte":%f,"$lte":%f},"Longitude":{"$gte":%f,"$lte":%f}}, "use_index":["_design/indexLocationDoc","indexLocation"]}`,
 		status, owner, latitudeLowerLimit, latitudeUpperLimit, longitudeLowerLimit, longitudeUpperLimit)
-		/*queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Status":"%s",
-		"Latitude":{"$gte":%f},"Longitude":{"$gte":%f}},"use_index":["_design/indexLocationDoc","indexLocation"]}`,
-			status, latitudeLowerLimit, longitudeLowerLimit)*/
-	// queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, owner)
-	//{ 'number' : {'$gte' :2, '$lte' : 3}
 
+	energies, err := s.Query(ctx, queryString)
+
+	return energies, err
+}
+
+func (s *SmartContract) Query(ctx contractapi.TransactionContextInterface, queryString string) ([]*Energy, error) {
 	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
 	if err != nil {
 		return nil, err
@@ -482,10 +444,6 @@ func (s *SmartContract) GetAllTokens(ctx contractapi.TransactionContextInterface
 	return energies, nil
 }
 
-/*
-// DeleteAsset deletes an given asset from the world state.
-// 後回し？そもそもいらない？30分経ったものを消去するかどうか。ステータスを変更するにとどめるか
-// 現状はUpdateAssetでステータスを変更
 func (s *SmartContract) DeleteAsset(ctx contractapi.TransactionContextInterface, id string) error {
 	exists, err := s.EnergyExists(ctx, id)
 	if err != nil {
@@ -496,4 +454,4 @@ func (s *SmartContract) DeleteAsset(ctx contractapi.TransactionContextInterface,
 	}
 
 	return ctx.GetStub().DelState(id)
-}*/
+}

@@ -1,9 +1,9 @@
 {
     "index":
-        {"fields":["DocType","User","Status","Bid Time"]
+        {"fields":["DocType","Owner","Status","Bid Time"]
         },
-        "ddoc":"indexUserAndTimeDoc",
-        "name":"indexUserAndTime",
+        "ddoc":"indexUserAndBidTimeDoc",
+        "name":"indexUserAndBidTime",
         "type":"json"
 
 }
