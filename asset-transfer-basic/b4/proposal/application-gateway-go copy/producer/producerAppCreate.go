@@ -60,7 +60,7 @@ func createToken(contract *client.Contract, input Input) (Energy, error) {
 
 	// fmt.Println("create")
 
-	evaluateResult, err := contract.SubmitTransaction("CreateToken", id, sLat, sLon, input.User, sAmo, largeCategory, input.Category, sTimestamp)
+	evaluateResult, err := contract.SubmitTransaction("CreateEnergyToken", id, sLat, sLon, input.User, sAmo, largeCategory, input.Category, sTimestamp)
 	if err != nil {
 		return energy, err
 	}

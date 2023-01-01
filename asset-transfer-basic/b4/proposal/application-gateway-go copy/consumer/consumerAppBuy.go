@@ -58,7 +58,7 @@ func Bid(contract *client.Contract, data Data) (Data, error) {
 
 	for _, energy := range energies {
 		distance := distance(data.Latitude, data.Longitude, energy.Latitude, energy.Longitude)
-		if distance <= searchRange && auctionStartTimeCompare <= energy.AuctionStartTime {
+		if distance <= searchRange {
 			myBidPrice = energy.UnitPrice + distance * pricePerMater
 			if (myBidPrice > energy.BidPrice || (myBidPrice == energy.BidPrice && (1 - data.BatteryLife) > energy.Priority)) {
 				validEnergies = append(validEnergies, energy)

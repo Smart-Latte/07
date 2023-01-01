@@ -1,4 +1,4 @@
-package producer
+package operator
 
 import (
 	"crypto/x509"
@@ -64,15 +64,11 @@ var StartTime int64
 var EndTime int64
 var Diff int64
 var Speed int64
-var Interval int64
-var TokenLife int64
 var StartHour int
 var SolarOutput [dayNum][hourNum]float64
 var WindOutput [dayNum][hourNum] float64
-var SeaWindOutput [dayNum][hourNum] float64
 
-func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, 
-	swOutput [dayNum][hourNum]float64, hour int) {
+func Operator(start int64, end int64, difference int64, mySpeed int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, hour int) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -104,56 +100,56 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 	EndTime = end
 	Diff = difference
 	Speed = mySpeed
-	Interval = auctionInterval
-	TokenLife = life
 	StartHour = hour
 	SolarOutput = sOutput
 	WindOutput = wOutput
-	SeaWindOutput = swOutput
 
-	var thermalOutput[dayNum][hourNum]  float64 =[dayNum][hourNum]float64 {
-		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
-		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
-
+	
 	var wg sync.WaitGroup
-
-	wg.Add(5)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", 1000000, SolarOutput, 0)
+		Operate(contract, SolarOutput, "solar")
 	}()
 	go func() {
 		defer wg.Done()
-		SeaWindProducer(contract, "real-wind-producer0", 40.2160279724715, 140.002846271612, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 1)
+		Operate(contract, WindOutput, "wind")
 	}()
-	go func() {
-		defer wg.Done()
-		SeaWindProducer(contract, "real-wind-producer1", 40.2095028757269, 139.997337258476, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 2)
-	}()
-	go func() {
-		defer wg.Done()
-		SeaWindProducer(contract, "real-wind-producer2", 40.2021377588529, 140.068615482843, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 3)
-	}()
-	go func() {
-		defer wg.Done()
-		SeaWindProducer(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 1000000, 12.5, 2.5, thermalOutput, 4)
-	}()
-
-	for i := 0; i < 1; i++ {
-		wg.Add(1)
-		go func(n int) {
-			// DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40, 41, 140, 141, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
-			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, "wind", 11000, 12.5, 2.5, WindOutput, int64(n + 1000))
-			// DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40, 41, 140, 141, "solar", 4000, SolarOutput, int64(n + 10000))
-			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40, 41, 140, 141, "solar", 40000, SolarOutput, int64(n + 10000))
-
-		}(i)
-	}
-
 	wg.Wait()
 
-	fmt.Printf("all producer end\n")
+	fmt.Printf("oeprator end\n")
 
+}
+
+func InitOperator() {
+	// The gRPC client connection should be shared by all Gateway connections to this endpoint
+	clientConnection := newGrpcConnection()
+	defer clientConnection.Close()
+
+	id := newIdentity()
+	sign := newSign()
+
+	// Create a Gateway connection for a specific client identity
+	gateway, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		// Default timeouts for different gRPC calls
+		client.WithEvaluateTimeout(5*time.Second),
+		client.WithEndorseTimeout(15*time.Second),
+		client.WithSubmitTimeout(5*time.Second),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+
+	if err != nil {
+		panic(err)
+	}
+	defer gateway.Close()
+
+	network := gateway.GetNetwork(channelName)
+	contract := network.GetContract(chaincodeName)
+
+	Init(contract)
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
