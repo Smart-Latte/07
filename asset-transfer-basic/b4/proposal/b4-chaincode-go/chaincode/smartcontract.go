@@ -341,6 +341,16 @@ func (s *SmartContract) QueryByStatus(ctx contractapi.TransactionContextInterfac
 	return energies, err
 }
 
+func (s *SmartContract) QueryByTime(ctx contractapi.TransactionContextInterface, start int64, end int64) ([]*Energy, error) {
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Generated Time":{"$gte":%d,"$lte":%d}},
+	"use_index":["_design/indexTimeDoc","indexTime"]}`, start, end)
+	// queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, owner)
+
+	energies, err := s.Query(ctx, queryString)
+
+	return energies, err
+}
+
 func (s *SmartContract) QueryByUserAndBidTime(ctx contractapi.TransactionContextInterface, owner string, status string, startTime int64, endTime int64) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Owner":"%s", "Status":"%s","Bid Time":{"$gte":%d,"$lte":%d}},
 	"use_index":["_design/indexUserAndBidTimeDoc","indexUserAndBidTime"]}`, owner, status, startTime, endTime)

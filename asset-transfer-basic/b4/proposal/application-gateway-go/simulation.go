@@ -4,8 +4,9 @@ import (
 	// "fmt"
 	"time"
 	"sync"
+	oprt "github.com/Smart-Latte/fabric-samples/blockchain-application/b4/proposal/operator"
 	prdc "github.com/Smart-Latte/fabric-samples/blockchain-application/b4/proposal/producer"
-	// cnsm "github.com/Smart-Latte/fabric-samples/blockchain-application/b4/proposal/consumer"
+	cnsm "github.com/Smart-Latte/fabric-samples/blockchain-application/b4/proposal/consumer"
 )
 
 const dayNum = 2
@@ -18,7 +19,7 @@ var insolation[dayNum][hourNum]  float64 =[dayNum][hourNum]float64 {
 	{0, 0, 0, 0, 0, 3, 15, 52, 221, 293, 343, 366, 360, 320, 250, 114, 75, 9, 0, 0, 0, 0, 0, 0}, 
 	{0, 0, 0, 0, 0, 3, 23, 99, 130, 214, 193, 319, 343, 309, 260, 156, 48, 8, 0, 0, 0, 0, 0, 0}}
 var windOutput[dayNum][hourNum]  float64 =[dayNum][hourNum]float64 {
-	{0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1}, 
+	{0.91, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1}, 
 	{0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1}}
 var solarOutput[dayNum][hourNum] float64
 
@@ -32,18 +33,26 @@ func main() {
 	startTime := time.Date(2015, time.March, 27, startHour, 0, 0, 0, time.Local).Unix()
 	nowTime := time.Now().Unix()
 	diff := nowTime - startTime
-	endTime := time.Date(2015, time.March, 28, startHour, 0, 0, 0, time.Local).Unix()
+	endTime := time.Date(2015, time.March, 27, startHour + 2, 0, 0, 0, time.Local).Unix()
 	var interval int64 = 1
-	var speed int64 = 6
+	var tokenLife int64 = 30
+	var speed int64 = 2
 	var wg sync.WaitGroup
-	wg.Add(1)
-	/*go func() {
-		defer wg.Done()
-		cnsm.AllConsumers(startTime, speed, interval)
-	}()*/
+
+	oprt.InitOperator()
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
-		prdc.AllProducers(startTime, endTime, diff, speed, interval, solarOutput, windOutput, startHour)
+		oprt.Operator(startTime, endTime, diff, speed, solarOutput, windOutput, startHour)
+	}()
+	go func() {
+		defer wg.Done()
+		prdc.AllProducers(startTime, endTime, diff, speed, interval, tokenLife, solarOutput, windOutput, startHour)
+	}()
+	go func() {
+		defer wg.Done()
+		// start int64, end int64, diff int64, auctionSpeed int64, auctionInterval int64, life int64, startHour int
+		cnsm.AllConsumers(startTime, endTime, diff, speed, interval, tokenLife, startHour)
 	}()
 	wg.Wait()
 }

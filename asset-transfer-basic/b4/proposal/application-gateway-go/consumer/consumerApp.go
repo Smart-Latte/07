@@ -1,197 +1,318 @@
 package consumer
 
 import (
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	//"io/ioutil"
 	//"log"
-	"path"
+	//"path"
 	"time"
-	//"net/http"
-	//"encoding/json"
-	//"bytes"
-
+	"math/rand"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
-	"github.com/hyperledger/fabric-gateway/pkg/identity"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
-const (
-	mspID         = "Org2MSP"
-	cryptoPath    = "../../../test-network/organizations/peerOrganizations/org2.example.com"
-	certPath      = cryptoPath + "/users/User1@org2.example.com/msp/signcerts/cert.pem"
-	keyPath       = cryptoPath + "/users/User1@org2.example.com/msp/keystore/"
-	tlsCertPath   = cryptoPath + "/peers/peer0.org2.example.com/tls/ca.crt"
-	peerEndpoint  = "localhost:9051"
-	gatewayPeer   = "peer0.org2.example.com"
-	channelName   = "mychannel"
-	chaincodeName = "basic"
-)
+/* 
+複数の需要家
+type1: 普通充電 昼に充電
+type2: 普通充電 夜に充電
+type3: 急速充電 昼に充電
+*/
 
-type Energy struct {
-	DocType          string    `json:"DocType"`
-	Amount float64 `json:"Amount"`
-	UnitPrice        float64   `json:"Unit Price"`
-	BidPrice         float64   `json:"Bid Price"`
-	GeneratedTime    time.Time `json:"Generated Time"`
-	AuctionStartTime time.Time `json:"Auction Start Time"`
-	BidTime          time.Time `json:"Bid Time"`
-	ID               string    `json:"ID"`
-	LargeCategory    string    `json:"LargeCategory"`
-	Latitude         float64   `json:"Latitude"`
-	Longitude        float64   `json:"Longitude"`
-	Owner            string    `json:"Owner"`
-	Producer         string    `json:"Producer"`
-	SmallCategory    string    `json:"SmallCategory"`
-	Status           string    `json:"Status"`
-	Error string `json:"Error"`
+// ゴールーチンで各ユーザ起動
+// input: シミュレーション開始時間
+
+type Data struct {
+	UserName string
+	Latitude float64
+	Longitude float64
+	TotalAmountWanted float64
+	LatestAuctionStartTime int64
+	FirstBidTime int64
+	LastBidTime int64
+	BatteryLife float64
+	Requested float64
+	BidAmount float64
+	BidSolar float64
+	BidWind float64
+	BidThermal float64
+	GetAmount float64
+	GetSolar float64
+	GetWind float64
+	GetThermal float64
 }
 
-func BidStart(userName string, Latitude float64, Longitude float64, energyAmount int, batteryLife float64) {
-	// var energies []Energy
-	successList, auctionStartMin, err := bidContract(userName, Latitude, Longitude, energyAmount, batteryLife)
-	if err != nil {
-		// return energies, err
-	}
-
-	if len(successList) > 0 {
-		bidResultContract(userName, auctionStartMin)
-	}
+/*type Input struct {
+	UserName string
+	Latitude float64
+	Longitude float64
+	Amount float64
+	BatteryLife float64
 }
 
-func bidContract(userName string, latitude float64, longitude float64, energyAmount int, batteryLife float64) ([]Energy, time.Time, error) {
-	var energies []Energy
-	var t time.Time
+type ResultInput struct {
+	UserName string
+	StartTime int64
+	EndTime int64
+}*/
+
+// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1)
+func Consume(contract *client.Contract, username string, lLat float64, uLat float64, lLon float64, uLon float64, add time.Duration, battery float64, charged float64, chargeTime float64, finalLife float64, seed int64) []Data {
+
+	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
+
+	rand.Seed(seed)
+	wait := time.Hour * add + time.Minute * time.Duration(1 + rand.Intn(60)) + time.Second * time.Duration(rand.Intn(60))
+	waitNano := time.Nanosecond * time.Duration(rand.Intn(1000000000))
+	fmt.Printf("%s wait : %v, waitNano:%d\n", username, wait, waitNano)
+
+	timer := time.NewTimer((waitNano + wait) / time.Duration(Speed))
+	lat := rand.Float64() * (uLat - lLat) + lLat
+	lon := rand.Float64() * (uLon - lLon) + lLon
+	fmt.Printf("lat: %g, lon: %g\n", lat, lon)
+
+	consumeData := []Data{}
+	//input := Input{UserName: username, Latitude: lat, Longitude: lon}
+	chargedEnergy := charged
+	finalBattery := battery * finalLife
+	require := finalBattery - charged
+	chargePerSec := battery / chargeTime / 60 / 60
+	requestMax := battery * finalLife / chargeTime / (60 / float64(TokenLife))
+	//fmt.Println(requestAmount)
+	var beforeUse float64 = 0
+	var err error
+
+	<- timer.C
+
+	// ticker := time.NewTicker(time.Duration(Interval) * time.Minute / time.Duration(Speed))
+	zeroCount := 0
+	// 1回目: amountPerMin * 2入札
+	// var getEnergy float64 = 0
+	//prevDone := true
+
+	loop:
+		for i := 0; ; i++ {
+			// bid
+			// 
+			fmt.Printf("%s: cosumerAppCount: %d\n", username, i)
+			var requestAmount float64
+			if (chargedEnergy >= finalBattery) {
+				fmt.Println("charged")
+				break
+			}
+			if (requestMax < finalBattery - chargedEnergy) {
+				requestAmount = requestMax - beforeUse
+			} else {
+				requestAmount = finalBattery - chargedEnergy
+			}
+
+			batteryLife := chargedEnergy / battery
+			consumeData = append(consumeData, Data{UserName: username, BatteryLife: batteryLife, Requested: requestAmount, Latitude: lat, Longitude: lon, TotalAmountWanted: require})
+
+			loopBid:
+				for {
+					select {
+					case <- endTimer.C:
+						timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+						fmt.Printf("CONSUMER END TIMER new: %v\n", time.Unix(timestamp, 0))
+						break loop
+					default:
+						consumeData[i], err = Bid(contract, consumeData[i])
+						if err != nil {
+							fmt.Printf("bid error: %v\n", err)
+						} else {
+							fmt.Println("no bid error")
+							break loopBid
+						}
+					}
+				}
+
+			fmt.Println("next is result")
+			if (consumeData[i].BidAmount == 0) {
+				zeroCount++
+				if (zeroCount > 3) {
+					fmt.Println("NO BID")
+				}
+				nothingTimer := time.NewTimer(60 * time.Second / time.Duration(Speed))
+				select {
+				case <- endTimer.C:
+					timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+					fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(timestamp, 0))
+					break loop
+				case <- nothingTimer.C:
+					continue loop
+				}
+			}
+
+			checkTime := (consumeData[i].LatestAuctionStartTime + Interval * 60 + 30)
+			wait := (checkTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed
+
+			fmt.Printf("%s check wait:%v sec\n", username, wait)
+
+			if (wait > 0) {
+				resultTimer := time.NewTimer(time.Duration(wait) * time.Second)
+				select {
+				case <- resultTimer.C:
+					// fmt.Println("result Timer")
+				case <- endTimer.C:
+					timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+					fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(timestamp, 0))
+					break loop
+				}
+			}
+			// bidResult
+			checkLoop:
+			for {
+				select{
+				case <-endTimer.C:
+					timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+					fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(timestamp, 0))
+					break loop
+				default:
+					consumeData[i], err = BidResult(contract, consumeData[i])
+					if err != nil {
+						fmt.Printf("bid result check error: %v\n", err)
+					} else {
+						fmt.Printf("%s: count: %d, bidEnergy:%g, getEnergy:%gWh\n", username, i, consumeData[i].BidAmount, consumeData[i].GetAmount)
+						break checkLoop
+					}
+				}
+			}
+
+			chargedEnergy += consumeData[i].GetAmount
+			var nextBidWait float64
+			if (consumeData[i].GetAmount >= chargePerSec * 60 * 5) {
+				nextBidWait = ((consumeData[i].GetAmount + beforeUse) / chargePerSec) - 5 * 60
+				beforeUse = chargePerSec * 60 * 5
+			} else {
+				nextBidWait = 0
+			}
+			nextBidTimer := time.NewTimer(time.Duration(nextBidWait) * time.Second / time.Duration(Speed))
+			fmt.Printf("next bid: after %v min\n", nextBidWait / 60 / float64(Speed))
+
+			select {
+			case <- nextBidTimer.C:
+				break
+			case <- endTimer.C:
+				nextBidTimer.Stop()
+				timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+				fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(timestamp, 0))
+				break loop
+			}
+		}
+	fmt.Println("consumer finish")
+	return consumeData
+
 	
-	// The gRPC client connection should be shared by all Gateway connections to this endpoint
-	clientConnection := newGrpcConnection()
-	defer clientConnection.Close()
+/*
+	for i := 0; ; i++ {
+		// <- ticker.C
+		if (i > 1) {
+			if (consumeData[i - 2].Done == false) {
+				i--
+				prevDone = false
+				continue
+			} else {
+				chargedEnergy += consumeData[i - 2]
+			}
+		}
 
-	id := newIdentity()
-	sign := newSign()
+		batteryLife := chargedEnergy / battery
+		fmt.Println(batteryLife)
 
-	// Create a Gateway connection for a specific client identity
-	gateway, err := client.Connect(
-		id,
-		client.WithSign(sign),
-		client.WithClientConnection(clientConnection),
-		// Default timeouts for different gRPC calls
-		client.WithEvaluateTimeout(5*time.Second),
-		client.WithEndorseTimeout(15*time.Second),
-		client.WithSubmitTimeout(5*time.Second),
-		client.WithCommitStatusTimeout(1*time.Minute),
-	)
-	if err != nil {
-		fmt.Println("gatewayerror")
-		return energies, t, err
+		if chargedEnergy >= finalBattery || zeroCount == 3{
+			ticker.Stop()
+			fmt.Println("break")
+			break
+		}
+
+		timestamp := ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)
+		var requestAmount float64
+		if (i > 0 && chargedEnergy + consumeData[i - 1].Reqeustd >= finalBattery) {
+			requestAmount = 0
+		} else if (i > 1) {
+			if (prevDone == false) {
+				requestAmount = amountPerMin * 6 - consumeData[i - 2].GetAmount * 2
+				prevDone = true
+			} else {
+				requestAmount = amountPerMin * 3 - consumeData[i - 2].GetAmount
+			}
+		} else {
+			requestAmount = amountPerMin * 3
+		}
+		
+		consumeData.appned(consumeData, Data{UserName: username, Battery: batteryLife, Done: false})
+		input.Timestamp = timestamp
+		input.Amount = requestAmount
+		input.BatteryLife = batteryLife
+
+		// bid
+		// append data. requestTime, battery, Requested
+
+		type Data struct {
+			UserName string
+			FirstAuctionStartTime int64
+			LatestAuctionStartTime int64
+			Battery float64
+			Requested float64
+			BidAmount float64
+			BidSolar float64
+			BidWind float64
+			BidThermal float64
+			GetAmount float64
+			GetSolar float64
+			GetWind float64
+			GetThermal float64
+			Done bool
+		}
+		consumeData[i].FirstAuctionStartTime, consumeData[i].LatestAuctionStartTime, consumeData[i].Requested, consumeData[i].BidAmount, 
+		consumeData[i].BidSolar, consumeData[i].BidWind, consumeData[i].BidThermal = Bid(contract, input)
+
+
+		wg.Add(1)
+			go func(input Input, int i) {
+				defer wg.Done()
+				timer := newTimer(time.Duration(Interval) * time.Minute / time.Duration(Speed))
+				resultinput = ResultInput{UserName: username, StartTime: Data[i].FirstAuctionStartTime + Interval, EndTime: Data[i].LatestAuctionStartTime + Interval}
+				<- timer.C
+				consumeData[i].GetAmount, consumeData[i].GetSolar, consumeData[i].GetWind, 
+				consumeData[i].GetThermal = auctionresult(resultInput)
+				consumeData[i].Done = true
+			}(input,  i)
+		
 	}
-	defer gateway.Close()
+	wg.Wait()
 
-	network := gateway.GetNetwork(channelName)
-	contract := network.GetContract(chaincodeName)
 
-	successList, auctionStartMin, err := Bid(contract, userName, latitude, longitude, energyAmount, batteryLife)
-	if (err != nil) {
-		fmt.Println("buy error")
-		return energies, t, err
-	}
-	return successList, auctionStartMin, nil
-}
 
-func bidResultContract(userName string, auctionStartMin time.Time) {
-	// The gRPC client connection should be shared by all Gateway connections to this endpoint
-	clientConnection := newGrpcConnection()
-	defer clientConnection.Close()
-
-	id := newIdentity()
-	sign := newSign()
-
-	// Create a Gateway connection for a specific client identity
-	gateway, err := client.Connect(
-		id,
-		client.WithSign(sign),
-		client.WithClientConnection(clientConnection),
-		// Default timeouts for different gRPC calls
-		client.WithEvaluateTimeout(5*time.Second),
-		client.WithEndorseTimeout(15*time.Second),
-		client.WithSubmitTimeout(5*time.Second),
-		client.WithCommitStatusTimeout(1*time.Minute),
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer gateway.Close()
-
-	network := gateway.GetNetwork(channelName)
-	contract := network.GetContract(chaincodeName)
-
-	BidResult(contract, userName, auctionStartMin)
-}
-
-// newGrpcConnection creates a gRPC connection to the Gateway server.
-func newGrpcConnection() *grpc.ClientConn {
-	certificate, err := loadCertificate(tlsCertPath)
-	if err != nil {
-		panic(err)
-	}
-
-	certPool := x509.NewCertPool()
-	certPool.AddCert(certificate)
-	transportCredentials := credentials.NewClientTLSFromCert(certPool, gatewayPeer)
-
-	connection, err := grpc.Dial(peerEndpoint, grpc.WithTransportCredentials(transportCredentials))
-	if err != nil {
-		panic(fmt.Errorf("failed to create gRPC connection: %w", err))
-	}
-
-	return connection
-}
-
-// newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
-func newIdentity() *identity.X509Identity {
-	certificate, err := loadCertificate(certPath)
-	if err != nil {
-		panic(err)
-	}
-
-	id, err := identity.NewX509Identity(mspID, certificate)
-	if err != nil {
-		panic(err)
+	// getEnergy := bid(math.Ceil(amountPerMin * 2), lat, lon, username, batteryLife)
+	if getEnergy == 0 {
+		zeroCount++
+		fmt.Printf("zeroCount: %d\n", zeroCount)
+	} else {
+		chargedEnergy += getEnergy
+		zeroCount = 0
 	}
 
-	return id
-}
+	for {
+		if chargedEnergy >= battery || zeroCount == 3 {
+			ticker.Stop()
+			fmt.Printf("break\n")
+			break
+		}
+		// tickerではなく、getEnergy後に再計算
+		// getEnergyが返ってくるまでにかかる時間は1分以上
+		// 返ってくる前にtickerでやってもいい？前々回までのデータを使って次の入札をすることになる
+		// [100, 200, 10, ]みたいに得られた電力量保存？
+		// getEnergy := bid(math.Ceil(amountPerMin * 2), lat, lon, username, batteryLife)
+		// ログ
+		<-ticker.C
+		getEnergy = 0
+		if getEnergy == 0 {
+			zeroCount++
+		} else {
+			zeroCount = 0
+			chargedEnergy += getEnergy
+		}
+		fmt.Printf("zeroCount: %d\n", zeroCount)
+	}*/
 
-func loadCertificate(filename string) (*x509.Certificate, error) {
-	certificatePEM, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read certificate file: %w", err)
-	}
-	return identity.CertificateFromPEM(certificatePEM)
-}
-
-// newSign creates a function that generates a digital signature from a message digest using a private key.
-func newSign() identity.Sign {
-	files, err := ioutil.ReadDir(keyPath)
-	if err != nil {
-		panic(fmt.Errorf("failed to read private key directory: %w", err))
-	}
-	privateKeyPEM, err := ioutil.ReadFile(path.Join(keyPath, files[0].Name()))
-
-	if err != nil {
-		panic(fmt.Errorf("failed to read private key file: %w", err))
-	}
-
-	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
-	if err != nil {
-		panic(err)
-	}
-
-	sign, err := identity.NewPrivateKeySign(privateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	return sign
 }

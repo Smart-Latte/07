@@ -65,11 +65,12 @@ var EndTime int64
 var Diff int64
 var Speed int64
 var Interval int64
+var TokenLife int64
 var StartHour int
 var SolarOutput [dayNum][hourNum]float64
 var WindOutput [dayNum][hourNum] float64
 
-func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, hour int) {
+func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, hour int) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -102,23 +103,24 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 	Diff = difference
 	Speed = mySpeed
 	Interval = auctionInterval
+	TokenLife = life
 	StartHour = hour
 	SolarOutput = sOutput
 	WindOutput = wOutput
 
-	fmt.Println(Interval)
-
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		Produce(contract, "real-solar-producer1", 40.2297629645958, 140.010266575019, "solar", 1000000, SolarOutput, 1)
 	}()
-	/*go func() {
+	go func() {
 		defer wg.Done()
-		Produce(contract, "real-wind-producer1", 140.010266575019, 140.014538870921, "wind", 12000000, WindOutput, 2)
-	}()*/
+		Produce(contract, "real-wind-producer1", 40.2434093542725, 140.014538870921, "wind", 1200000, WindOutput, 2)
+	}()
 	wg.Wait()
+
+	fmt.Printf("all producer end\n")
 
 }
 

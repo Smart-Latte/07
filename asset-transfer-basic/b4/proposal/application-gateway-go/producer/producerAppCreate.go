@@ -15,13 +15,17 @@ func Create(contract *client.Contract, input Input) () {
 	var energy Energy
 	var err error
 
+	createLoop:
 	for {
 		energy, err = createToken(contract, input)
 		if err != nil {
-			fmt.Println("create Token Error")
+			fmt.Printf("create Token Error: %s\n", err.Error())
 			errCount++
-			if errCount > 3 {break}
-		} else {break}
+			if errCount > 3 {
+				fmt.Println("many create error")
+				break createLoop
+			}
+		} else {break createLoop}
 	}
 	if err != nil {
 		return 
@@ -32,7 +36,7 @@ func Create(contract *client.Contract, input Input) () {
 }
 
 func createToken(contract *client.Contract, input Input) (Energy, error) {
-	fmt.Printf("Submit Transaction: CreateToken, creates new token with ID, Latitude, Longitude, Owner, Large Category, Small Category and timestamp \n")
+	// fmt.Printf("Submit Transaction: CreateToken, creates new token with ID, Latitude, Longitude, Owner, Large Category, Small Category and timestamp \n")
 	var largeCategory string
 	if (input.Category == "solar" || input.Category == "wind") {
 		largeCategory = "green"
@@ -51,11 +55,10 @@ func createToken(contract *client.Contract, input Input) (Energy, error) {
 
 	var energy Energy
 
-	fmt.Println("create")
+	// fmt.Println("create")
 
 	evaluateResult, err := contract.SubmitTransaction("CreateToken", id, sLat, sLon, input.User, sAmo, largeCategory, input.Category, sTimestamp)
 	if err != nil {
-		fmt.Println(err)
 		return energy, err
 	}
 
@@ -64,7 +67,7 @@ func createToken(contract *client.Contract, input Input) (Energy, error) {
 		return energy, err
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	// fmt.Printf("*** %s: Transaction committed successfully\n", id)
 
 	return energy, nil
 }

@@ -10,31 +10,45 @@ import (
 )
 
 func Auction(contract *client.Contract, energy Energy) {
-	timer := time.NewTimer(time.Duration(60 - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime - energy.AuctionStartTime)) * time.Second / time.Duration(Speed))
-	<- timer.C
+	timer := time.NewTimer(time.Duration(Interval * 60 - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime - energy.AuctionStartTime)) * time.Second / time.Duration(Speed))
+	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 
-	ticker := time.NewTicker(time.Duration(Interval * 60) * time.Second / time.Duration(Speed))
+	auctionEndCount := 1
+	select {
+	case <- timer.C:
+		ticker := time.NewTicker(time.Duration(Interval * 60) * time.Second / time.Duration(Speed))
 
-	timestamp := fmt.Sprintf("%d", (time.Now().Unix() -Diff - StartTime) * Speed + StartTime)
+		timestamp := fmt.Sprintf("%d", (time.Now().Unix() -Diff - StartTime) * Speed + StartTime)
 
-	fmt.Printf("create time: %v\n", time.Unix(energy.AuctionStartTime, 0))
-	fmt.Printf("auctionEnd call: %v\n", time.Unix((time.Now().Unix() - Diff - StartTime) * Speed + StartTime, 0))
-	isSold := auctionEnd(contract, energy, timestamp)
-	if isSold == true {
+		// fmt.Printf("auctionEndCall: id: %s, count: %d\n", energy.ID, auctionEndCount)
+		isSold := auctionEnd(contract, energy, timestamp)
+		if isSold == true {
+			return
+		}
+
+		for i := 1; i < int(TokenLife / Interval); i++ {
+			auctionEndCount++
+			select {
+			case <- ticker.C:
+				timestamp := fmt.Sprintf("%d", (time.Now().Unix() -Diff - StartTime) * Speed + StartTime)
+				if (auctionEndCount == 31) {
+					fmt.Printf("auctionEndCall: id: %s, count: %d\n", energy.ID, auctionEndCount)
+				}
+				isSold := auctionEnd(contract, energy, timestamp)
+				if isSold == true {
+					ticker.Stop()
+					return
+				}
+			case <- endTimer.C:
+				ticker.Stop()
+				return
+			}
+		}
+	case <-  endTimer.C:
+		timer.Stop()
 		return
 	}
 
-	for i := 0; i < 30; i++ {
-		<- ticker.C
-		timestamp := fmt.Sprintf("%d", (time.Now().Unix() -Diff - StartTime) * Speed + StartTime)
-		fmt.Printf("create time: %v\n", time.Unix(energy.AuctionStartTime, 0))
-		fmt.Printf("auctionEnd call: %v\n", time.Unix((time.Now().Unix() - Diff - StartTime) * Speed + StartTime, 0))
-		isSold := auctionEnd(contract, energy, timestamp)
-		if isSold == true {
-			ticker.Stop()
-			break
-		}
-	}
 }
 
 func auctionEnd(contract *client.Contract, energy Energy, timestamp string) bool {
@@ -48,7 +62,7 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp string) bool
 		// fmt.Printf("producer: %s, time: %s", energy.Producer, sGeneratedTime)
 		evaluateResult, err := contract.SubmitTransaction("QueryByUserAndGeneratedTime", energy.Producer, sGeneratedTime)
 		if err != nil {
-			fmt.Println("auction end query error")
+			fmt.Printf("auction end query error: %s\n", err.Error())
 		} else {
 			err = json.Unmarshal(evaluateResult, &energies)
 			if(err != nil) {
@@ -59,12 +73,12 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp string) bool
 		}
 	}
 
-	for _, e := range energies {
+	/*for _, e := range energies {
 		fmt.Println(e)
-	}
+	}*/
 
 	var wg sync.WaitGroup
-	fmt.Printf("energies length: %d\n", len(energies))
+	// fmt.Printf("energies length: %d\n", len(energies))
 	for i:= 0; i < len(energies); i++ {
 		wg.Add(1)
 
@@ -76,7 +90,9 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp string) bool
 			}
 			count := 0
 			for {
-				fmt.Printf("%s count is%d\n", energies[n].ID, count)
+				if (count > 0) {
+					fmt.Printf("%s count is%d\n", energies[n].ID, count)
+				}
 				count++
 				message, err := auctionEndTransaction(contract, energies[n].ID, timestamp)
 				if err != nil {
@@ -85,7 +101,7 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp string) bool
 					stopmassage1 := "the energy " + energies[n].ID + " was generated more than 30min ago. This was not sold."
 					stopmassage2 := "the energy " + energies[n].ID + " was sold"
 					if message == stopmassage1 || message == stopmassage2 {
-						fmt.Println("sold")
+						// fmt.Printf("%s: %s\n", energies[n].ID, message)
 					} else {
 						energies[n].Amount = 0
 					}
@@ -107,7 +123,7 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp string) bool
 	return isSold
 }
 func auctionEndTransaction(contract *client.Contract, energyId string, timestamp string) (string, error) {
-	fmt.Printf("Evaluate Transaction: auctionEnd\n")
+	// fmt.Printf("Evaluate Transaction: auctionEnd\n")
 	
 	evaluateResult, err := contract.SubmitTransaction("AuctionEnd", energyId, timestamp)
 	if err != nil {
@@ -115,6 +131,6 @@ func auctionEndTransaction(contract *client.Contract, energyId string, timestamp
 	}
 	massage := string(evaluateResult)
 
-	fmt.Printf("*** Result:%s\n", massage)
+	// fmt.Printf("*** %s Result:%s\n", energyId, massage)
 	return massage, nil
 }
