@@ -44,11 +44,11 @@ func main() {
 	var wg sync.WaitGroup
 
 	oprt.InitOperator()
-	wg.Add(3)
-	go func() {
+	wg.Add(2)
+	/*go func() {
 		defer wg.Done()
 		oprt.Operator(startTime, endTime, diff, speed, solarOutput, windOutput, startHour)
-	}()
+	}()*/
 	go func() {
 		defer wg.Done()
 		prdc.AllProducers(startTime, endTime, diff, speed, interval, tokenLife, solarOutput, windOutput, seaWindOutput, startHour)

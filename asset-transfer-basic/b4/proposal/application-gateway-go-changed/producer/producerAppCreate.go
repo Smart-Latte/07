@@ -10,32 +10,41 @@ import (
 )
 
 func Create(contract *client.Contract, input Input) () {
-	
+	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 	errCount := 0
 	var energy Energy
 	var err error
 
 	createLoop:
 	for {
-		energy, err = createToken(contract, input)
-		if err != nil {
-			fmt.Printf("create Token Error: %s\n", err.Error())
-			errCount++
-			rand.Seed(time.Now().UnixNano())
-			timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
-			<- timer.C
-			if errCount > 3 {
-				fmt.Println("many create error")
+		select {
+		case <-endTimer.C:
+			return
+		default:
+			energy, err = createToken(contract, input)
+			if err != nil {
+				fmt.Printf("create Token Error: %s\n", err.Error())
+				errCount++
+				rand.Seed(time.Now().UnixNano())
+				timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
+				<- timer.C
+				if errCount > 3 {
+					fmt.Println("many create error")
+					return
+				}
+			} else {
 				break createLoop
 			}
-		} else {break createLoop}
-	}
-	if err != nil {
-		return 
-	} else {
-		Auction(contract, energy)
+		}
 	}
 
+	select {
+	case <-endTimer.C:
+		return
+	default:
+		fmt.Printf("call auction %s\n", energy.ID)
+		Auction(contract, energy)
+	}
 }
 
 func createToken(contract *client.Contract, input Input) (Energy, error) {

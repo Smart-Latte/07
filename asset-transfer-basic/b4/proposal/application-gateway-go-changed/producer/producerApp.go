@@ -65,12 +65,12 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 	var maxCreateInterval float64 = 2.5 // min
 	var maxCreateAmount float64 = 2500 // Wh
 
-	for i := 0; i <  dayNum; i++ {
+	/*for i := 0; i <  dayNum; i++ {
 		for j := 0; j < hourNum; j++ {
 			fmt.Printf("%v ", output * outputList[i][j])
 		}
 		fmt.Println("")
-	}
+	}*/
 
 	for i := 0; i < dayNum; i++ {
 		for j := 0; j < hourNum; j++ {
@@ -83,7 +83,7 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 				myOutput[i][j] = outputPerHour / 60 * maxCreateInterval
 				timing[i][j] = 60 * maxCreateInterval
 			}
-			fmt.Printf("output:%v, timing:%v ", myOutput[i][j], timing[i][j])
+			// fmt.Printf("output:%v, timing:%v ", myOutput[i][j], timing[i][j])
 		}
 	}
 	
@@ -121,12 +121,15 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 				// ログ
 				select {
 				case <-ticker.C:
-					var input Input = Input{User: username, Latitude: lat, Longitude: lon, Amount: thisOut, Category: category, Timestamp: ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)}
-					wg.Add(1)
-					go func(i Input) {
-						defer wg.Done()
-						Create(contract, i)
-					}(input)
+					if (thisOut > 0) {
+						timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+						var input Input = Input{User: username, Latitude: lat, Longitude: lon, Amount: thisOut, Category: category, Timestamp: timestamp}
+						wg.Add(1)
+						go func(i Input) {
+							defer wg.Done()
+							Create(contract, i)
+						}(input)
+					}
 					// wg.Wait()
 					thisTimeCounter++
 				case <- endTimer.C:

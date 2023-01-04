@@ -1,6 +1,6 @@
 {
     "index":
-        {"fields":["DocType","Status","Owner"]
+        {"fields":["DocType","Status"]
         },
         "ddoc":"indexStatusDoc",
         "name":"indexStatus",

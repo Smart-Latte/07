@@ -29,12 +29,14 @@ const (
 type Energy struct {
 	DocType          string    `json:"DocType"`
 	Amount float64 `json:"Amount"`
+	BidAmount float64 `json:"BidAmount"`
+	SoldAmount float64 `json:"SoldAmount"`
 	UnitPrice        float64   `json:"Unit Price"`
 	BidPrice         float64   `json:"Bid Price"`
 	GeneratedTime    int64 `json:"Generated Time"`
-	AuctionStartTime int64 `json:"Auction Start Time"`
 	BidTime          int64 `json:"Bid Time"`
 	ID               string    `json:"ID"`
+	EnergyID string `json:"EnergyID"`
 	LargeCategory    string    `json:"LargeCategory"`
 	Latitude         float64   `json:"Latitude"`
 	Longitude        float64   `json:"Longitude"`
@@ -42,7 +44,6 @@ type Energy struct {
 	Producer         string    `json:"Producer"`
 	Priority float64 `json:"Priority"`
 	SmallCategory    string    `json:"SmallCategory"`
-	Status           string    `json:"Status"`
 }
 
 

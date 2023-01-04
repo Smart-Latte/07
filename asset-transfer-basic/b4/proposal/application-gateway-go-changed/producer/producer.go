@@ -1,15 +1,11 @@
-package consumer
+package producer
 
 import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	//"log"
 	"path"
 	"time"
-	//"net/http"
-	//"encoding/json"
-	//"bytes"
 	"sync"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -19,13 +15,13 @@ import (
 )
 
 const (
-	mspID         = "Org2MSP"
-	cryptoPath    = "../../../../test-network/organizations/peerOrganizations/org2.example.com"
-	certPath      = cryptoPath + "/users/User1@org2.example.com/msp/signcerts/cert.pem"
-	keyPath       = cryptoPath + "/users/User1@org2.example.com/msp/keystore/"
-	tlsCertPath   = cryptoPath + "/peers/peer0.org2.example.com/tls/ca.crt"
-	peerEndpoint  = "localhost:9051"
-	gatewayPeer   = "peer0.org2.example.com"
+	mspID         = "Org1MSP"
+	cryptoPath    = "../../../../test-network/organizations/peerOrganizations/org1.example.com"
+	certPath      = cryptoPath + "/users/User1@org1.example.com/msp/signcerts/cert.pem"
+	keyPath       = cryptoPath + "/users/User1@org1.example.com/msp/keystore/"
+	tlsCertPath   = cryptoPath + "/peers/peer0.org1.example.com/tls/ca.crt"
+	peerEndpoint  = "localhost:7051"
+	gatewayPeer   = "peer0.org1.example.com"
 	channelName   = "mychannel"
 	chaincodeName = "basic"
 )
@@ -33,12 +29,14 @@ const (
 type Energy struct {
 	DocType          string    `json:"DocType"`
 	Amount float64 `json:"Amount"`
+	BidAmount float64 `json:"BidAmount"`
+	SoldAmount float64 `json:"SoldAmount"`
 	UnitPrice        float64   `json:"Unit Price"`
 	BidPrice         float64   `json:"Bid Price"`
 	GeneratedTime    int64 `json:"Generated Time"`
-	AuctionStartTime int64 `json:"Auction Start Time"`
 	BidTime          int64 `json:"Bid Time"`
 	ID               string    `json:"ID"`
+	EnergyID string `json:"EnergyID"`
 	LargeCategory    string    `json:"LargeCategory"`
 	Latitude         float64   `json:"Latitude"`
 	Longitude        float64   `json:"Longitude"`
@@ -47,12 +45,27 @@ type Energy struct {
 	Priority float64 `json:"Priority"`
 	SmallCategory    string    `json:"SmallCategory"`
 	Status           string    `json:"Status"`
-	Error string `json:"Error"`
 }
 
-var startTime time.Time // シミュレーション開始時間
-var auctionInterval time.Duration // オークション時間
-var speed int // 何倍速か
+type Input struct {
+	Latitude         float64   `json:"latitude"`
+	Longitude        float64   `json:"longitude"`
+	User            string    `json:"user"`
+	Amount float64 `json:"amount"`
+	Category string `json:"category"`
+	Timestamp int64 `json:"timestamp"`
+}
+
+type EndInput struct {
+	ID string `json:"ID"`
+	Amount float64 `json:"Amount"`
+	Time int64 `json:"Time"`
+}
+
+const (
+	dayNum = 2
+	hourNum = 24
+)
 
 var StartTime int64
 var EndTime int64
@@ -61,10 +74,12 @@ var Speed int64
 var Interval int64
 var TokenLife int64
 var StartHour int
+var SolarOutput [dayNum][hourNum]float64
+var WindOutput [dayNum][hourNum] float64
+var SeaWindOutput [dayNum][hourNum] float64
 
-// ゴールーチンで各ユーザ起動
-// input: シミュレーション開始時間
-func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctionInterval int64, life int64, startHour int) {
+func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, 
+	swOutput [dayNum][hourNum]float64, hour int) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -83,6 +98,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		client.WithSubmitTimeout(5*time.Second),
 		client.WithCommitStatusTimeout(1*time.Minute),
 	)
+
 	if err != nil {
 		panic(err)
 	}
@@ -93,46 +109,58 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 
 	StartTime = start
 	EndTime = end
-	Diff = diff
-	StartHour = startHour
-	fmt.Println(StartTime)
-	Speed = auctionSpeed
+	Diff = difference
+	Speed = mySpeed
 	Interval = auctionInterval
 	TokenLife = life
+	StartHour = hour
+	SolarOutput = sOutput
+	WindOutput = wOutput
+	SeaWindOutput = swOutput
 
-	userData := [][]Data{}
+	var thermalOutput[dayNum][hourNum]  float64 =[dayNum][hourNum]float64 {
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 
-	//40.23299059978385, 140.0137246267796
-	//40.182882947704655, 140.0626533051892
-
-	// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1), seed
 	var wg sync.WaitGroup
 
-	for i := 0; i < 1260; i++ {
-		wg.Add(1)
-		userData = append(userData, []Data{})
-		go func(n int) {
-			defer wg.Done()
-			userData[n] = Consume(contract, fmt.Sprintf("consumer%d", n), 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 0, 66000, 1000, 12, 1, int64(n))
-		}(i)
-	}
-
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", 1000000, SolarOutput, 0)
+	}()
+	go func() {
+		defer wg.Done()
+		SeaWindProducer(contract, "real-wind-producer0", 40.2160279724715, 140.002846271612, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 1)
+	}()
 	/*go func() {
 		defer wg.Done()
-		Produce(contract, "real-wind-producer1", 140.010266575019, 140.014538870921, "wind", 12000000, WindOutput, 2)
+		SeaWindProducer(contract, "real-wind-producer1", 40.2095028757269, 139.997337258476, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 2)
+	}()
+	go func() {
+		defer wg.Done()
+		SeaWindProducer(contract, "real-wind-producer2", 40.2021377588529, 140.068615482843, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 3)
 	}()*/
+	go func() {
+		defer wg.Done()
+		Produce(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 1000000, thermalOutput, 4)
+	}()
+
+	/*for i := 0; i < 1; i++ {
+		wg.Add(1)
+		go func(n int) {
+			// DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40, 41, 140, 141, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
+			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, "wind", 11000, 12.5, 2.5, WindOutput, int64(n + 1000))
+			// DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40, 41, 140, 141, "solar", 4000, SolarOutput, int64(n + 10000))
+			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40, 41, 140, 141, "solar", 40000, SolarOutput, int64(n + 10000))
+
+		}(i)
+	}*/
+
 	wg.Wait()
-	fmt.Println("all consumer end")
-	for i := 0; i < len(userData); i++ {
-		fmt.Printf("%s result:\n", userData[i][0].UserName)
-		for _, user := range userData[i] {
-			fmt.Printf("UserName:%s, Latitude:%v, Longitude:%v, TotalAmountWanted:%v, LatestAuctionStartTime:%v, FirstBidTime:%v, LastBidTime:%v, BatteryLife:%v, Requested:%v, BidAmount:%v, BidSolar:%v, BidWind:%v, BidThermal:%v, GetAmount:%v, GetSolar:%v, GetWind:%v, GetThermal:%v\n", user.UserName, user.Latitude, user.Longitude, user.TotalAmountWanted, 
-		user.LatestAuctionStartTime, user.FirstBidTime, user.LastBidTime, user.BatteryLife, user.Requested, user.BidAmount, user.BidSolar, user.BidWind, user.BidThermal, user.GetAmount, 
-	user.GetSolar, user.GetWind, user.GetThermal)
-		}
-		fmt.Println("")
-	}
-	
+
+	fmt.Printf("all producer end\n")
+
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.

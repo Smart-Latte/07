@@ -3,8 +3,8 @@ package chaincode
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
-	//"errors"
+	// "sort"
+	// "errors"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -40,6 +40,11 @@ type Energy struct {
 type Output struct {
 	Message string `json:"Message"`
 	Amount float64 `json:"Amount"`
+}
+type Input struct {
+	ID string 	`json:"ID"`
+	Amount float64 	`json:"Amount"`
+	Time int64 `sjon:"Time"`
 }
 
 const (
@@ -129,7 +134,6 @@ func (s *SmartContract) CreateEnergyToken(ctx contractapi.TransactionContextInte
 		ID:               id,
 		Latitude:         latitude,
 		Longitude:        longitude,
-		Owner:            producer,
 		Producer:         producer,
 		LargeCategory:    largeCategory,
 		SmallCategory:    smallCategory,
@@ -137,8 +141,6 @@ func (s *SmartContract) CreateEnergyToken(ctx contractapi.TransactionContextInte
 		Status:           "generated",
 		GeneratedTime:    timestamp,
 		UnitPrice:        cost.UnitPrice,
-		BidPrice:         cost.UnitPrice,
-		Priority: -1, 
 	}
 	energyJSON, err := json.Marshal(energy)
 	if err != nil {
@@ -151,17 +153,8 @@ func (s *SmartContract) CreateEnergyToken(ctx contractapi.TransactionContextInte
 // TransferAsset updates the owner field of asset with given id in world state, and returns the old owner.
 // 購入する
 func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface, 
-	bidId string, energyId string, bidder string, bidPrice float64, priority float64, amount float64, timestamp int64) (string, error) {
-	energy, err := s.ReadToken(ctx, energyId)
-	if err != nil {
-		return "", err
-	}
+	bidId string, energyId string, bidder string, bidPrice float64, priority float64, amount float64, timestamp int64, lCat string, sCat string, unitPrice float64) (string, error) {
 	
-	generatedTimeCompare := timestamp - 60 * tokenLife
-	if generatedTimeCompare >= energy.GeneratedTime {
-		return fmt.Sprintf("the energy %s was generated more than %dmin ago", energyId, tokenLife), nil
-	}
-
 	exists, err := s.EnergyExists(ctx, bidId)
 
 	//get unit price
@@ -177,18 +170,14 @@ func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface,
 		DocType:          "bid",
 		ID:               bidId,
 		EnergyID: energyId,
-		Latitude:         energy.Latitude,
-		Longitude:        energy.Longitude,
 		Owner:         	  bidder,
-		Producer:         energy.Producer,
-		LargeCategory:    energy.LargeCategory,
-		SmallCategory:    energy.SmallCategory,
+		LargeCategory:    lCat,
+		SmallCategory:    sCat,
 		BidAmount: amount,
 		Status:           "bid",
-		UnitPrice:        energy.UnitPrice,
+		UnitPrice:        unitPrice,
 		BidPrice:         bidPrice,
 		Priority: 		  priority, 
-		GeneratedTime: energy.GeneratedTime,
 		BidTime: timestamp,
 	}
 
@@ -202,7 +191,7 @@ func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface,
 		return "", err
 	}
 
-	return "your bid was successful", nil
+	return "your bid is accepted", nil
 }
 
 func (s *SmartContract) ChangeToken(ctx contractapi.TransactionContextInterface, energy *Energy) (error) {
@@ -210,6 +199,7 @@ func (s *SmartContract) ChangeToken(ctx contractapi.TransactionContextInterface,
 	if err != nil {
 		return err
 	}
+	
 
 	err = ctx.GetStub().PutState(energy.ID, energyJSON)
 	if err != nil {
@@ -218,13 +208,69 @@ func (s *SmartContract) ChangeToken(ctx contractapi.TransactionContextInterface,
 	return nil
 }
 
-func (s *SmartContract) AuctionEnd(ctx contractapi.TransactionContextInterface, energyId string, timestamp int64) (string, error) {
-	energy, err := s.ReadToken(ctx, energyId)
+func (s *SmartContract) AuctionEnd(ctx contractapi.TransactionContextInterface, energyInput *Input, bidInput []*Input) (string, error) {
+	var message string
+	var bidList []*Energy
+	energy, err := s.ReadToken(ctx, energyInput.ID)
 	if err != nil {
 		return "", err
 	}
+	generatedTimeCompare := energyInput.Time - 60 * tokenLife
+	if (generatedTimeCompare > energy.GeneratedTime) {
+		energy.Status = "old"
+		message = "the energy was generated more than 30min ago. This was not sold."
+	} else {
+		if (energy.Amount < energy.SoldAmount + energyInput.Amount) {
+			return "energy amount is wrong", nil
+		}
+		energy.SoldAmount += energyInput.Amount
+		if (energy.Amount == energy.SoldAmount) {
+			energy.Status = "sold"
+			message = "auction end"
+		} else {
+			message = "auction continue"
+		}
+		
+		for i := 0; i < len(bidInput); i++ {
+			if (bidInput[i].ID == "old") {
+				return "the energy is alive", nil
+			}
+			bid, err := s.ReadToken(ctx, bidInput[i].ID)
+			if (err != nil) {
+				return "", err
+			}
+			if (bid.EnergyID != energy.ID) {
+				return "energy ID is wrong", nil
+			}
+			if (bidInput[i].Amount > bid.BidAmount) {
+				return "bid amount is wrong", nil
+			}
+			bid.Amount = bidInput[i].Amount
+			bid.Producer = energy.Producer
+			bid.Status = "success"
+			bidList = append(bidList, bid)
+		}
+	}
+	err = s.UpdateToken(ctx, energy)
+		if err != nil {
+			return "", err
+		}
 
-	startTime := timestamp - 2 * auctionInterval * 60
+	for _, bid := range bidList {
+		err := s.UpdateToken(ctx, bid)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return message , nil 
+	
+	
+
+
+	/*newEnergy := energy
+
+	startTime := timestamp - auctionInterval * 75
 	endTime := timestamp - 1
 
 	bidding, err := s.QueryAuctionEnd(ctx, energyId, startTime, endTime)
@@ -246,40 +292,54 @@ func (s *SmartContract) AuctionEnd(ctx contractapi.TransactionContextInterface, 
 
 	generatedTimeCompare := timestamp - 60 * tokenLife
 
-	totalAmount := energy.Amount - energy.SoldAmount
+	totalAmount := newEnergy.Amount - newEnergy.SoldAmount
 	successList := []*Energy{}
 	var returnMessage string
+	test := ""
 
-	if generatedTimeCompare  >= energy.GeneratedTime && len(bidding) == 0 {
-		energy.Status = "old"
+	if generatedTimeCompare  >= newEnergy.GeneratedTime && len(bidding) == 0 {
+		newEnergy.Status = "old"
 		returnMessage = "the energy was generated more than 30min ago. This was not sold."
 	} else {
 		for _, b := range bidding {
-			if (totalAmount > 0 && b.BidAmount >= totalAmount) {
+			if (totalAmount > 0 && (b.BidAmount >= totalAmount)) {
 				b.Amount = totalAmount
 				totalAmount = 0
 				b.Status = "success"
 				successList  = append(successList, b)
-			} else if (totalAmount > 0 && b.BidAmount < totalAmount) {
+			} else if (totalAmount > 0 && (b.BidAmount < totalAmount)) {
 				b.Amount = b.BidAmount
 				totalAmount -= b.Amount
 				b.Status = "success"
 				successList  = append(successList, b)
-			} 
+			} else if (totalAmount > 0) {
+				test += " else"
+			}
 		}
 	}
 
-	energy.SoldAmount = energy.Amount - totalAmount
+	newEnergy.SoldAmount = newEnergy.Amount - totalAmount
 	if totalAmount == 0 {
-		energy.Status = "sold"
+		newEnergy.Status = "sold"
 		returnMessage = "auction ended"
 	} else {
 		returnMessage = "auction continues"
 	}
 
-	err = s.UpdateToken(ctx, energy)
-	if err != nil {
-		return "", err
+	if (newEnergy != energy) { 
+		err = s.UpdateToken(ctx, newEnergy)
+		if err != nil {
+			return "", err
+		}
+		if (returnMessage == "auction continues") {
+			returnMessage += " sametoken"
+			returnMessage += test
+		}
+	} else {
+		if (returnMessage == "auction continues") {
+			returnMessage += " difftoken"
+			returnMessage += test
+		}
 	}
 
 	for _, bid := range successList {
@@ -287,12 +347,27 @@ func (s *SmartContract) AuctionEnd(ctx contractapi.TransactionContextInterface, 
 		if err != nil {
 			return "", err
 		}
-	}
+	}*/
 
-	for _, bid := range bidding {
-		returnMessage += fmt.Sprintf(" %v\n", bid)
+	// return returnMessage, nil
+}
+
+func (s *SmartContract) AuctionEndQuery(ctx contractapi.TransactionContextInterface, id string, timestamp int64) ([]*Energy, error) {
+	var energies []*Energy
+	exist, err := s.EnergyExists(ctx, id)
+	if (err != nil) {
+		return energies, err
 	}
-	return returnMessage, nil
+	if exist == false {
+		return energies, fmt.Errorf("no energy Token")
+	}
+	startTime := timestamp - auctionInterval * 75
+	endTime := timestamp - 1
+	qEnergies, err := s.QueryAuctionEnd(ctx, id, startTime, endTime)
+	if (err != nil) {
+		return energies, err
+	} 
+	return qEnergies, nil
 }
 
 // AssetExists returns true when asset with given ID exists in world state
@@ -346,9 +421,9 @@ func (s *SmartContract) QueryAuctionEnd(ctx contractapi.TransactionContextInterf
 	return energies, err
 }
 
-func (s *SmartContract) QueryByStatus(ctx contractapi.TransactionContextInterface, status string, owner string) ([]*Energy, error) {
-	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Status":"%s","Owner":{"$ne":"%s"}},
-	"use_index":["_design/indexStatusDoc","indexStatus"]}`, status, owner)
+func (s *SmartContract) QueryByStatus(ctx contractapi.TransactionContextInterface, docType string, status string) ([]*Energy, error) {
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"%s","Status":"%s"},
+	"use_index":["_design/indexStatusDoc","indexStatus"]}`, docType, status)
 	// queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, owner)
 
 	energies, err := s.Query(ctx, queryString)
