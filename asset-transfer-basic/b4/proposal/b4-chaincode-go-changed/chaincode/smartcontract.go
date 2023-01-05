@@ -421,6 +421,16 @@ func (s *SmartContract) QueryAuctionEnd(ctx contractapi.TransactionContextInterf
 	return energies, err
 }
 
+func (s *SmartContract) QueryBid(ctx contractapi.TransactionContextInterface, status string, startTime int64, endTime int64) ([]*Energy, error) {
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"bid","Status":"%s","Bid Time":{"$gte":%d,"$lte":%d}},
+	"use_index":["_design/indexBidResultDoc","indexBidResult"]}`, status, startTime, endTime)
+	// queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, owner)
+
+	energies, err := s.Query(ctx, queryString)
+
+	return energies, err
+}
+
 func (s *SmartContract) QueryByStatus(ctx contractapi.TransactionContextInterface, docType string, status string) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"%s","Status":"%s"},
 	"use_index":["_design/indexStatusDoc","indexStatus"]}`, docType, status)
@@ -441,6 +451,33 @@ func (s *SmartContract) QueryByTime(ctx contractapi.TransactionContextInterface,
 	return energies, err
 }
 
+func (s *SmartContract) BidOk(ctx contractapi.TransactionContextInterface, energyId string, bidPrice float64, priority float64) (bool, error) {
+
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"bid","EnergyID":"%s","Bid Price":{"$gte":%v}},
+	"use_index":["_design/indexBidOkDoc","indexBidOk"]}`, energyId, bidPrice)
+
+	bidList, err := s.Query(ctx, queryString)
+	if err != nil {
+		return false, err
+	}
+
+	if (len(bidList) == 0) {
+		return true, nil
+	}
+
+	for _, b := range bidList {
+		if (b.BidPrice > bidPrice) {
+			return false, nil
+		} 
+		if (b.BidPrice == bidPrice && b.Priority >= priority) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+
+}
+/*
 func (s *SmartContract) QueryByUserAndBidTime(ctx contractapi.TransactionContextInterface, owner string, status string, startTime int64, endTime int64) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Owner":"%s", "Status":"%s","Bid Time":{"$gte":%d,"$lte":%d}},
 	"use_index":["_design/indexUserAndBidTimeDoc","indexUserAndBidTime"]}`, owner, status, startTime, endTime)
@@ -448,8 +485,8 @@ func (s *SmartContract) QueryByUserAndBidTime(ctx contractapi.TransactionContext
 	energies, err := s.Query(ctx, queryString)
 
 	return energies, err
-}
-
+}*/
+/*
 func (s *SmartContract) QueryByUserAndGeneratedTime(ctx contractapi.TransactionContextInterface, producer string, timestamp int64) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Producer":"%s","Generated Time":%d},
 	"use_index":["_design/indexUserAndGeneratedTimeDoc","indexUserAndGeneratedTime"]}`, producer, timestamp)
@@ -457,8 +494,8 @@ func (s *SmartContract) QueryByUserAndGeneratedTime(ctx contractapi.TransactionC
 	energies, err := s.Query(ctx, queryString)
 
 	return energies, err
-}
-
+}*/
+/*
 func (s *SmartContract) QueryByUserAndTime(ctx contractapi.TransactionContextInterface, producer string, startTime int64, endTime int64) ([]*Energy, error) {
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Producer":"%s","Generated Time":{"$gte":%d,"$lte":%d}},
 	"use_index":["_design/indexUserAndGeneratedTimeDoc","indexUserAndGeneratedTime"]}`, producer, startTime, endTime)
@@ -466,17 +503,17 @@ func (s *SmartContract) QueryByUserAndTime(ctx contractapi.TransactionContextInt
 	energies, err := s.Query(ctx, queryString)
 
 	return energies, err
-}
+}*/
 
-
+/*
 func (s *SmartContract) QueryByUserAndStatus(ctx contractapi.TransactionContextInterface, owner string, status string) ([]*Energy, error) {
-	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Owner":"%s", "Status":"%s"},
+	queryString := fmt.Sprintf(`{"selector":{"DocType":"token","Owner":"%s","Status":"%s"},
 	"use_index":["_design/indexUserAndStatusDoc","indexUserAndStatus"]}`, owner, status)
 
 	energies, err := s.Query(ctx, queryString)
 
 	return energies, err
-}
+}*/
 
 func (s *SmartContract) QueryByLocationRange(ctx contractapi.TransactionContextInterface,
 	status string, owner string, latitudeLowerLimit float64, latitudeUpperLimit float64,

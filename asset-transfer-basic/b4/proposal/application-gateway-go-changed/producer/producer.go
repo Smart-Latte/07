@@ -124,7 +124,7 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 
 	var wg sync.WaitGroup
 
-	wg.Add(3)
+	wg.Add(5)
 	go func() {
 		defer wg.Done()
 		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", 1000000, SolarOutput, 0)
@@ -133,14 +133,14 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 		defer wg.Done()
 		SeaWindProducer(contract, "real-wind-producer0", 40.2160279724715, 140.002846271612, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 1)
 	}()
-	/*go func() {
+	go func() {
 		defer wg.Done()
 		SeaWindProducer(contract, "real-wind-producer1", 40.2095028757269, 139.997337258476, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 2)
 	}()
 	go func() {
 		defer wg.Done()
 		SeaWindProducer(contract, "real-wind-producer2", 40.2021377588529, 140.068615482843, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 3)
-	}()*/
+	}()
 	go func() {
 		defer wg.Done()
 		Produce(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 1000000, thermalOutput, 4)

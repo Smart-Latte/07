@@ -110,16 +110,36 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 
 	// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1), seed
 	var wg sync.WaitGroup
+	userNum := 70 //420
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < userNum; i++ {
 		wg.Add(1)
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n] = Consume(contract, fmt.Sprintf("consumer%d", n), 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 0, 66000, 1000, 12, 1, int64(n))
+			userData[n] = Morning(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 8, int64(n))
 		}(i)
 	}
 
+	for i := 0; i < userNum; i++ {
+		wg.Add(1)
+		userData = append(userData, []Data{})
+		go func(n int) {
+			defer wg.Done()
+			userData[n + userNum] = Night(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 8, int64(n + userNum))
+		}(i)
+	}
+
+	for i := 0; i < userNum; i++ {
+		wg.Add(1)
+		userData = append(userData, []Data{})
+		go func(n int) {
+			defer wg.Done()
+			userData[n + 2 * userNum] = Night(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 0.66, int64(n + 2 *userNum))
+		}(i)
+	}
+
+	
 	/*go func() {
 		defer wg.Done()
 		Produce(contract, "real-wind-producer1", 140.010266575019, 140.014538870921, "wind", 12000000, WindOutput, 2)
@@ -135,6 +155,8 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		}
 		fmt.Println("")
 	}
+
+	DbResister(userData)
 	
 }
 

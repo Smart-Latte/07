@@ -161,7 +161,7 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 		if err != nil {
 			log.Printf("producer auction end error: %v\n", err.Error())
 			if (err.Error() == "energy amount is wrong" || err.Error() == "the energy is alive" || err.Error() == "energy ID is wrong" || err.Error() == "bid amount is wrong") {
-				break
+				return message, nil
 			}
 		} else { 
 			message = string(evaluateResult)

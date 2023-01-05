@@ -51,6 +51,8 @@ github.com/hyperledger/fabric-gateway v1.1.0 h1:zQ6BjUCBCUUbPQNI/B/rzBD6QRvaqWxE
 github.com/hyperledger/fabric-gateway v1.1.0/go.mod h1:A+MuROWOKhmUsYVO2PREggHLPgPAXaudwCoZRpuSeqs=
 github.com/hyperledger/fabric-protos-go-apiv2 v0.0.0-20220615102044-467be1c7b2e7 h1:loYDK6Vrf7z3fff6YBVKFkFeCGCoKr8O2ed02CESBUQ=
 github.com/hyperledger/fabric-protos-go-apiv2 v0.0.0-20220615102044-467be1c7b2e7/go.mod h1:smwq1q6eKByqQAp0SYdVvE1MvDoneF373j11XwWajgA=
+github.com/mattn/go-sqlite3 v1.14.16 h1:yOQRA0RpS5PFz/oikGwBEqvAWhWg5ufRz4ETLjwpU1Y=
+github.com/mattn/go-sqlite3 v1.14.16/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
 github.com/miekg/pkcs11 v1.1.1 h1:Ugu9pdy6vAYku5DEpVWVFPYnzV+bxB+iRdbuFSu7TvU=
 github.com/miekg/pkcs11 v1.1.1/go.mod h1:XsNlhZGX73bx86s2hdc/FuaLm2CPZJemRLMA+WTFxgs=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

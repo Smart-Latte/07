@@ -21,6 +21,7 @@ type3: 急速充電 昼に充電
 // input: シミュレーション開始時間
 
 type Data struct {
+	ID int
 	UserName string
 	Latitude float64
 	Longitude float64
@@ -53,20 +54,49 @@ type ResultInput struct {
 	EndTime int64
 }*/
 
+func Morning(contract *client.Contract, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("morningUser%v", seed)
+	rand.Seed(seed)
+	add := rand.Intn(4)
+	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 1, seed)
+	return DataList
+}
+
+func Night(contract *client.Contract, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("nightUser%v", seed)
+	rand.Seed(seed)
+	add := 12 + rand.Intn(4)
+	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 1, seed)
+	return DataList
+}
+
+func Fast(contract *client.Contract, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("fastUser%v" ,seed)
+	rand.Seed(seed)
+	add := rand.Intn(11)
+	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 0.8, seed)
+	return DataList
+}
+
+
 // 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1)
-func Consume(contract *client.Contract, username string, lLat float64, uLat float64, lLon float64, uLon float64, add time.Duration, battery float64, charged float64, chargeTime float64, finalLife float64, seed int64) []Data {
+func Consume(contract *client.Contract, username string, lLat float64, uLat float64, lLon float64, uLon float64, add time.Duration, battery float64, chargeTime float64, finalLife float64, seed int64) []Data {
 
 	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 
 	rand.Seed(seed)
 	wait := time.Hour * add + time.Minute * time.Duration(1 + rand.Intn(60)) + time.Second * time.Duration(rand.Intn(60))
 	waitNano := time.Nanosecond * time.Duration(rand.Intn(1000000000))
+	
 	fmt.Printf("%s wait : %v, waitNano:%d\n", username, wait, waitNano)
 
 	timer := time.NewTimer((waitNano + wait) / time.Duration(Speed))
 	lat := rand.Float64() * (uLat - lLat) + lLat
 	lon := rand.Float64() * (uLon - lLon) + lLon
 	fmt.Printf("lat: %g, lon: %g\n", lat, lon)
+
+	var charged float64
+	charged = float64(rand.Intn(int(battery)))
 
 	consumeData := []Data{}
 	//input := Input{UserName: username, Latitude: lat, Longitude: lon}

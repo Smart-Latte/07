@@ -8,6 +8,7 @@ import (
 	"time"
 	"log"
 	"sort"
+	"strconv"
 
 	"encoding/json"
 
@@ -122,12 +123,20 @@ func main() {
 		fmt.Println(message)
 	}*/
 
-	// Init(contract)
+	Init(contract)
 	energy, err := createEnergyToken(contract)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	fmt.Println(energy)
+
+	b, err := bidOk(contract)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(b)
+
+	/*fmt.Println(energy)
 	bidOnEnergy(contract, "bid01", 0.026, "user1", 0.09, 100, "1427402500")
 	bidOnEnergy(contract, "bid02", 0.025, "user1", 0.09, 1000, "1427402500")
 
@@ -146,7 +155,7 @@ func main() {
 	if (err != nil) {
 		fmt.Println(err.Error())
 	}
-	fmt.Println(message)
+	fmt.Println(message)*/
 
 
 	/*
@@ -177,6 +186,31 @@ func main() {
 	
 	
 
+}
+
+func bidOk(contract *client.Contract) (bool, error){
+	sBidPrice := fmt.Sprintf("%v", 0.03)
+	sPriority := fmt.Sprintf("%v", 0.09)
+	isOk := true
+
+	fmt.Println(sBidPrice)
+	fmt.Println(sPriority)
+
+		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+			return false, fmt.Errorf("time up")
+		}
+		evaluateResult, err := contract.SubmitTransaction("BidOk", "test01", sBidPrice, sPriority)
+		if err != nil {
+			log.Printf("bid ok error: %v\n", err.Error())
+		} else {
+			result := string(evaluateResult)
+			isOk, err = strconv.ParseBool(result)
+			if err != nil {
+				log.Printf("parse string to bool error:%v\n", err.Error())
+			}
+		}
+
+	return isOk, nil
 }
 func Init(contract *client.Contract) {
 	fmt.Printf("Submit Transaction: InitLedger, function creates the initial set of assets on the ledger \n")

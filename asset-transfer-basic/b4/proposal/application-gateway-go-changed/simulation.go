@@ -33,22 +33,22 @@ func main() {
 			seaWindOutput[i][j] = windOutput[i][j] * math.Pow((82 / 19), 0.1)
 		}
 	}
-	startHour := 5
+	startHour := 6
 	startTime := time.Date(2015, time.March, 27, startHour, 0, 0, 0, time.Local).Unix()
 	nowTime := time.Now().Unix()
 	diff := nowTime - startTime
-	endTime := time.Date(2015, time.March, 27, startHour + 2, 0, 0, 0, time.Local).Unix()
+	endTime := time.Date(2015, time.March, 27, startHour + 24, 0, 0, 0, time.Local).Unix()
 	var interval int64 = 1
 	var tokenLife int64 = 30
 	var speed int64 = 2
 	var wg sync.WaitGroup
 
 	oprt.InitOperator()
-	wg.Add(2)
-	/*go func() {
+	wg.Add(3)
+	go func() {
 		defer wg.Done()
 		oprt.Operator(startTime, endTime, diff, speed, solarOutput, windOutput, startHour)
-	}()*/
+	}()
 	go func() {
 		defer wg.Done()
 		prdc.AllProducers(startTime, endTime, diff, speed, interval, tokenLife, solarOutput, windOutput, seaWindOutput, startHour)

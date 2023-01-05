@@ -66,7 +66,15 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 		distance := distance(data.Latitude, data.Longitude, energy.Latitude, energy.Longitude)
 		if (distance <= searchRange && generatedTimeCompare < energy.GeneratedTime) {
 			myBidPrice := energy.UnitPrice + distance * pricePerMater
-			if (myBidPrice > energy.BidPrice || (myBidPrice == energy.BidPrice && (1 - data.BatteryLife) > energy.Priority)) {
+			isOk, err := bidOk(contract, energy.ID, myBidPrice, (1 - data.BatteryLife))
+			if err != nil {
+				return success, data, nil
+			}
+			/*if (myBidPrice > energy.BidPrice || (myBidPrice == energy.BidPrice && (1 - data.BatteryLife) > energy.Priority)) {
+				energy.BidPrice = myBidPrice
+				validEnergies = append(validEnergies, energy)
+			}*/
+			if isOk {
 				energy.BidPrice = myBidPrice
 				validEnergies = append(validEnergies, energy)
 			}
@@ -282,6 +290,34 @@ func bidOnEnergy(contract *client.Contract, energyId string, bidPrice float64, u
 	return message, timestamp, bidId, nil
 }
 
+//func (s *SmartContract) BidOk(ctx contractapi.TransactionContextInterface, energyId string, bidPrice float64, priority float64) (bool, error) {
+
+	func bidOk(contract *client.Contract, energyId string, bidPrice float64, priority float64) (bool, error){
+		sBidPrice := fmt.Sprintf("%v", bidPrice)
+		sPriority := fmt.Sprintf("%v", priority)
+		isOk := true
+
+		for {
+			if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+				return false, fmt.Errorf("time up")
+			}
+			evaluateResult, err := contract.SubmitTransaction("BidOk", energyId, sBidPrice, sPriority)
+			if err != nil {
+				log.Printf("bid ok error: %v\n", err.Error())
+			} else {
+				result := string(evaluateResult)
+				isOk, err = strconv.ParseBool(result)
+				if err != nil {
+					log.Printf("parse string to bool error:%v\n", err.Error())
+				}
+				break
+			}
+		}
+
+		return isOk, nil
+	}
+	
+
 func determineRange(length float64, myLatitude float64, myLongitude float64) (lowerLat float64, upperLat float64, lowerLng float64, upperLng float64) {
 	// 緯度固定で経度求める
 	rlat := myLatitude * math.Pi / 180
@@ -331,7 +367,7 @@ func queryByLocationRange(contract *client.Contract, consumer string, lowerLat f
 		}
 		evaluateResult, err := contract.EvaluateTransaction("QueryByLocationRange", "generated", consumer, strLowerLat, strUpperLat, strLowerLng, strUpperLng)
 		if err != nil {
-			log.Printf("queryByLOcationRange error: %s, %v\n", consumer, err.Error())
+			log.Printf("queryByLocationRange error: %s, %v\n", consumer, err.Error())
 			// panic(fmt.Errorf("failed to evaluate transaction: %w", err))
 		} else {
 			err = json.Unmarshal(evaluateResult, &result)
