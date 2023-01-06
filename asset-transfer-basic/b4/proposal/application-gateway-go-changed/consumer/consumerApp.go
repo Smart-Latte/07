@@ -125,7 +125,8 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 			var requestAmount float64
 			if (chargedEnergy >= finalBattery) {
 				fmt.Println("charged")
-				break
+				endTimer.Stop()
+				break loop
 			}
 			if (requestMax < finalBattery - chargedEnergy) {
 				requestAmount = requestMax - beforeUse
@@ -156,8 +157,10 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 			fmt.Println("next is result")
 			if (consumeData[i].BidAmount == 0) {
 				zeroCount++
-				if (zeroCount > 3) {
+				if (zeroCount > 30) {
 					fmt.Println("NO BID")
+					endTimer.Stop()
+					break loop
 				}
 				nothingTimer := time.NewTimer(60 * time.Second / time.Duration(Speed))
 				select {

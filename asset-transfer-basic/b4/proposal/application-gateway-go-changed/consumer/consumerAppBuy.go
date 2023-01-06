@@ -24,7 +24,7 @@ type Output struct {
 const (
 	earthRadius = 6378137.0
 	pricePerMater = 0.000001
-	kmPerBattery = 0.1 // battery(%) * kmPerBattery = x km
+	kmPerBattery = 0.05 // battery(%) * kmPerBattery = x km
 	layout = "2006-01-02T15:04:05+09:00"
 )
 
@@ -274,16 +274,19 @@ func bidOnEnergy(contract *client.Contract, energyId string, bidPrice float64, u
 		case <- endTimer.C:
 			return message, timestamp, bidId, fmt.Errorf("time up")
 		default:*/
-		evaluateResult, err := contract.SubmitTransaction("BidOnEnergy", bidId, energyId, username, sBidPrice, sPriority, sAmount, sTimestamp, lCat, sCat, sUnitPrice)
+		submitResult, err := contract.SubmitTransaction("BidOnEnergy", bidId, energyId, username, sBidPrice, sPriority, sAmount, sTimestamp, lCat, sCat, sUnitPrice)
 		if err != nil {
-			log.Printf("bid error: %s, %v\n", energyId, err.Error())
+			log.Printf("%s, bid error: %s, %v\n", username, energyId, err)
 			// rand.Seed(time.Now().UnixNano())
 			// timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
 			count++
+			if count > 3 {
+				return "", timestamp, bidId, err
+			}
 			// <- timer.C
 		} else {
-			message = string(evaluateResult)
-			log.Printf("bid on %s time: %s, now: %v, message: %s\n", energyId, sTimestamp, ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime), message)
+			message = string(submitResult)
+			log.Printf("%s, bid on %s time: %s, now: %v, message: %s\n", username, energyId, sTimestamp, ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime), message)
 			break bidLoop
 		}
 	}
@@ -301,7 +304,7 @@ func bidOnEnergy(contract *client.Contract, energyId string, bidPrice float64, u
 			if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
 				return false, fmt.Errorf("time up")
 			}
-			evaluateResult, err := contract.SubmitTransaction("BidOk", energyId, sBidPrice, sPriority)
+			evaluateResult, err := contract.EvaluateTransaction("BidOk", energyId, sBidPrice, sPriority)
 			if err != nil {
 				log.Printf("bid ok error: %v\n", err.Error())
 			} else {

@@ -110,7 +110,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 
 	// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1), seed
 	var wg sync.WaitGroup
-	userNum := 70 //420
+	userNum := 30 //420
 
 	for i := 0; i < userNum; i++ {
 		wg.Add(1)
@@ -135,7 +135,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n + 2 * userNum] = Night(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 0.66, int64(n + 2 *userNum))
+			userData[n + 2 * userNum] = Fast(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 0.66, int64(n + 2 *userNum))
 		}(i)
 	}
 
@@ -147,7 +147,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 	wg.Wait()
 	fmt.Println("all consumer end")
 	for i := 0; i < len(userData); i++ {
-		fmt.Printf("%s result:\n", userData[i][0].UserName)
+		// fmt.Printf("%s result:\n", userData[i][0].UserName)
 		for _, user := range userData[i] {
 			fmt.Printf("UserName:%s, Latitude:%v, Longitude:%v, TotalAmountWanted:%v, FirstBidTime:%v, LastBidTime:%v, BatteryLife:%v, Requested:%v, BidAmount:%v, BidSolar:%v, BidWind:%v, BidThermal:%v, GetAmount:%v, GetSolar:%v, GetWind:%v, GetThermal:%v\n", user.UserName, user.Latitude, user.Longitude, user.TotalAmountWanted, 
 		user.FirstBidTime, user.LastBidTime, user.BatteryLife, user.Requested, user.BidAmount, user.BidSolar, user.BidWind, user.BidThermal, user.GetAmount, 

@@ -38,9 +38,10 @@ func DbResister(dataList [][]Data) {
 
 	for i := 0; i < len(dataList); i++ {
 		for j := 0; j < len(dataList[i]); j++ {
-			id := fmt.Sprintf("%d%s", time.Now().Unix(), dataList[i][j].UserName)
+			id := fmt.Sprintf("%d-%d-%s", time.Now().Unix(), dataList[i][j].LastBidTime, dataList[i][j].UserName)
 			_, err := stmt.Exec(id, dataList[i][j].UserName, dataList[i][j].Latitude, dataList[i][j].Longitude, dataList[i][j].TotalAmountWanted, dataList[i][j].FirstBidTime,
-			dataList[i][j].LastBidTime, dataList[i][j].BidWind, dataList[i][j].BidThermal, dataList[i][j].GetAmount, dataList[i][j].GetSolar, dataList[i][j].GetWind, dataList[i][j].GetThermal)
+			dataList[i][j].LastBidTime, dataList[i][j].BatteryLife, dataList[i][j].Requested, dataList[i][j].BidAmount, dataList[i][j].BidSolar, 
+			dataList[i][j].BidWind, dataList[i][j].BidThermal, dataList[i][j].GetAmount, dataList[i][j].GetSolar, dataList[i][j].GetWind, dataList[i][j].GetThermal)
 			if err != nil {
 				panic(err)
 			}

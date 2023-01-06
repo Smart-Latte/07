@@ -40,7 +40,7 @@ func main() {
 	endTime := time.Date(2015, time.March, 27, startHour + 24, 0, 0, 0, time.Local).Unix()
 	var interval int64 = 1
 	var tokenLife int64 = 30
-	var speed int64 = 2
+	var speed int64 = 6
 	var wg sync.WaitGroup
 
 	oprt.InitOperator()

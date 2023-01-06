@@ -111,7 +111,7 @@ func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64
 		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return bidList, fmt.Errorf("time up")
 		}
-		evaluateResult, err := contract.SubmitTransaction("AuctionEndQuery", energyId, sTimestamp)
+		evaluateResult, err := contract.EvaluateTransaction("AuctionEndQuery", energyId, sTimestamp)
 		if err != nil {
 			log.Printf("auction end query error: %v\n", err.Error())
 		} else {
@@ -157,14 +157,14 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return "", fmt.Errorf("time up")
 		}
-		evaluateResult, err := contract.SubmitTransaction("AuctionEnd", string(energyJSON), string(bidJSON))
+		submitResult, err := contract.SubmitTransaction("AuctionEnd", string(energyJSON), string(bidJSON))
 		if err != nil {
 			log.Printf("producer auction end error: %v\n", err.Error())
 			if (err.Error() == "energy amount is wrong" || err.Error() == "the energy is alive" || err.Error() == "energy ID is wrong" || err.Error() == "bid amount is wrong") {
 				return message, nil
 			}
 		} else { 
-			message = string(evaluateResult)
+			message = string(submitResult)
 			break loop
 		}
 	}

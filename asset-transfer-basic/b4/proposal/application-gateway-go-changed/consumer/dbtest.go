@@ -1,4 +1,4 @@
-package consumer
+package main
 import (
 	"database/sql"
 	"fmt"
@@ -8,6 +8,54 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+type User struct {
+	Name string
+	Age int
+}
+
+
+type Energy struct {
+	DocType          string    `json:"DocType"`
+	Amount float64 `json:"Amount"`
+	BidAmount float64 `json:"BidAmount"`
+	SoldAmount float64 `json:"SoldAmount"`
+	UnitPrice        float64   `json:"Unit Price"`
+	BidPrice         float64   `json:"Bid Price"`
+	GeneratedTime    int64 `json:"Generated Time"`
+	BidTime          int64 `json:"Bid Time"`
+	ID               string    `json:"ID"`
+	EnergyID string `json:"EnergyID"`
+	LargeCategory    string    `json:"LargeCategory"`
+	Latitude         float64   `json:"Latitude"`
+	Longitude        float64   `json:"Longitude"`
+	Owner            string    `json:"Owner"`
+	Producer         string    `json:"Producer"`
+	Priority float64 `json:"Priority"`
+	SmallCategory    string    `json:"SmallCategory"`
+	Status           string    `json:"Status"`
+	Error string `json:"Error"`
+}
+
+type Data struct {
+	ID int
+	UserName string
+	Latitude float64
+	Longitude float64
+	TotalAmountWanted float64
+	FirstBidTime int64
+	LastBidTime int64
+	BatteryLife float64
+	Requested float64
+	BidAmount float64
+	BidSolar float64
+	BidWind float64
+	BidThermal float64
+	GetAmount float64
+	GetSolar float64
+	GetWind float64
+	GetThermal float64
+}
 
 
 func main() {
@@ -23,7 +71,7 @@ func main() {
 	fmt.Println("../db/test.db")*/
 
 
-	db, err :=  sql.Open("sqlite3", "db/test.db")
+	db, err :=  sql.Open("sqlite3", "db/test0.db")
 	if err != nil {
 		panic(err)
 	}
@@ -32,6 +80,11 @@ func main() {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "Data" ("ID" INTEGER PRIMARY KEY, "UserName" TEXT, "Latitude" REAL, "Longitude" REAL, "TotalAmountWanted" REAL, 
 	"FirstBidTime" INTEGER, "LastBidTime" INTEGER, "BatteryLife" REAL, "Requested" REAL, "BidAmount" REAL, "BidSolar" REAL, "BidWind" REAL, "BidThermal" REAL, 
 	"GetAmount" REAL, "GetSolar" REAL, "GetWind" REAL, "GetThermal" REAL)`)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "User" ("Name" STRING PRIMARY KEY, "Age" INTEGER)`)
 	if err != nil {
 		panic(err)
 	}
@@ -68,6 +121,23 @@ func main() {
 		}
 	}
 	isOk := true
+
+	stmt, err = tx.Prepare(`INSERT INTO User (Name, Age) VALUES (?, ?)`)
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("user%d", i)
+		age := i
+		_, err := stmt.Exec(name, age)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+
+
 	if isOk {
 		tx.Commit()
 	} else {
@@ -76,7 +146,7 @@ func main() {
 
 
 	rows, err := db.Query(
-		`SELECT * FROM Data`,
+		`SELECT UserName, GetAmount FROM Data`,
 	)
 	if err != nil {
 		panic(err)
@@ -84,12 +154,24 @@ func main() {
 	defer rows.Close()
 	for rows.Next() {
 		var d Data
-		err := rows.Scan(&d.ID, &d.UserName, &d.Latitude, &d.Longitude, &d.TotalAmountWanted, &d.FirstBidTime, &d.LastBidTime, &d.BatteryLife, 
-			&d.Requested, &d.BidAmount, &d.BidSolar, &d.BidWind, &d.BidThermal, &d.GetAmount, &d.GetSolar, &d.GetWind, &d.GetThermal)
+		err := rows.Scan(&d.UserName, &d.GetAmount)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		fmt.Println(d)
+		fmt.Printf("username: %v, getAmount: %v\n", d.UserName, d.GetAmount)
+	}
+
+	rows, err = db.Query(
+		`SELECT * FROM User`,
+	)
+	for rows.Next() {
+		var user User
+		err := rows.Scan(&user.Name, &user.Age)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		fmt.Printf("name: %v, age: %v\n", user.Name, user.Age)
 	}
 }
