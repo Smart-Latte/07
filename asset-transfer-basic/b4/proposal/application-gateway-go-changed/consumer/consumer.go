@@ -110,14 +110,14 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 
 	// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1), seed
 	var wg sync.WaitGroup
-	userNum := 30 //420
+	userNum := 210 //420
 
 	for i := 0; i < userNum; i++ {
 		wg.Add(1)
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n] = Morning(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 8, int64(n))
+			userData[n] = Morning(contract, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 40000, 8, int64(n))
 		}(i)
 	}
 
@@ -126,7 +126,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n + userNum] = Night(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 8, int64(n + userNum))
+			userData[n + userNum] = Night(contract, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 40000, 8, int64(n + userNum))
 		}(i)
 	}
 
@@ -135,7 +135,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n + 2 * userNum] = Fast(contract, 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, 40000, 0.66, int64(n + 2 *userNum))
+			userData[n + 2 * userNum] = Fast(contract, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 40000, 0.66, int64(n + 2 *userNum))
 		}(i)
 	}
 

@@ -1,14 +1,23 @@
 import sqlite3
 
-dbname = 'db/20230106.db'
+dbname = 'db/test1.db'
 conn = sqlite3.connect(dbname)
 cur = conn.cursor()
 
-cur.execute('SELECT * FROM EnergyData ORDER BY GeneratedTime LIMIT 10')
+cur.execute('SELECT count(*) FROM EnergyData')
+print(cur.fetchone())
+#for row in cur:
+    #print(row)
+
+cur.execute('SELECT * FROM EnergyData ORDER BY GeneratedTime ASC LIMIT 10')
 for row in cur:
     print(row)
 
 cur.execute('SELECT * FROM BidData ORDER BY Amount DESC LIMIT 10')
+for row in cur:
+    print(row)
+
+cur.execute('SELECT * FROM ConsumerData LIMIT 10')
 for row in cur:
     print(row)
 

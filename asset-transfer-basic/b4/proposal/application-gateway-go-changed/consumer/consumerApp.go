@@ -21,7 +21,7 @@ type3: 急速充電 昼に充電
 // input: シミュレーション開始時間
 
 type Data struct {
-	ID int
+	ID string
 	UserName string
 	Latitude float64
 	Longitude float64
@@ -96,7 +96,7 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 	fmt.Printf("lat: %g, lon: %g\n", lat, lon)
 
 	var charged float64
-	charged = float64(rand.Intn(int(battery)))
+	charged = float64(rand.Intn(int(battery * finalLife)))
 
 	consumeData := []Data{}
 	//input := Input{UserName: username, Latitude: lat, Longitude: lon}
@@ -116,15 +116,15 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 	// 1回目: amountPerMin * 2入札
 	// var getEnergy float64 = 0
 	//prevDone := true
-
+	consumerStart := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
 	loop:
 		for i := 0; ; i++ {
 			// bid
 			// 
-			fmt.Printf("%s: cosumerAppCount: %d\n", username, i)
+			// fmt.Printf("%s: cosumerAppCount: %d\n", username, i)
 			var requestAmount float64
 			if (chargedEnergy >= finalBattery) {
-				fmt.Println("charged")
+				// fmt.Println("charged")
 				endTimer.Stop()
 				break loop
 			}
@@ -151,17 +151,17 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 					fmt.Printf("CONSUMER END TIMER new: %v\n", time.Unix(timestamp, 0))
 					break loop
 				}
-				fmt.Printf("%s bid energy: %vWh\n", username, consumeData[i].BidAmount)
+				// fmt.Printf("%s bid energy: %vWh\n", username, consumeData[i].BidAmount)
 			}
 
-			fmt.Println("next is result")
+		// 	fmt.Println("next is result")
 			if (consumeData[i].BidAmount == 0) {
 				zeroCount++
-				if (zeroCount > 30) {
+				/*if (zeroCount > 30) {
 					fmt.Println("NO BID")
 					endTimer.Stop()
 					break loop
-				}
+				}*/
 				nothingTimer := time.NewTimer(60 * time.Second / time.Duration(Speed))
 				select {
 				case <- endTimer.C:
@@ -176,7 +176,7 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 			checkTime := (consumeData[i].LastBidTime + Interval * 60 + 30)
 			wait := (checkTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed
 
-			fmt.Printf("%s check wait:%v sec\n", username, wait)
+			// fmt.Printf("%s check wait:%v sec\n", username, wait)
 
 			if (wait > 0) {
 				resultTimer := time.NewTimer(time.Duration(wait) * time.Second)
@@ -201,7 +201,7 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 					fmt.Printf("time up: %v\n", err)
 					break loop
 				} else {
-					fmt.Printf("%s: count: %d, bidEnergy:%g, getEnergy:%gWh\n", username, i, consumeData[i].BidAmount, consumeData[i].GetAmount)
+					// fmt.Printf("%s: count: %d, bidEnergy:%g, getEnergy:%gWh\n", username, i, consumeData[i].BidAmount, consumeData[i].GetAmount)
 				}
 			}
 
@@ -214,7 +214,7 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 				nextBidWait = 0
 			}
 			nextBidTimer := time.NewTimer(time.Duration(nextBidWait) * time.Second / time.Duration(Speed))
-			fmt.Printf("next bid: after %v min\n", nextBidWait / 60 / float64(Speed))
+			// fmt.Printf("next bid: after %v min\n", nextBidWait / 60 / float64(Speed))
 
 			select {
 			case <- nextBidTimer.C:
@@ -226,7 +226,8 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 				break loop
 			}
 		}
-	fmt.Println("consumer finish")
+	timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+	fmt.Printf("consumer %s finish start:%v, end:%v, finalBattery:%v, chargedEnergy:%v\n", username, time.Unix(consumerStart, 0), time.Unix(timestamp, 0), finalBattery, chargedEnergy)
 	return consumeData
 
 	

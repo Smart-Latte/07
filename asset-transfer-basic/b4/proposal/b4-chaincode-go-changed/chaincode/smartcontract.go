@@ -456,6 +456,11 @@ func (s *SmartContract) BidOk(ctx contractapi.TransactionContextInterface, energ
 	queryString := fmt.Sprintf(`{"selector":{"DocType":"bid","EnergyID":"%s","Bid Price":{"$gte":%v}},
 	"use_index":["_design/indexBidOkDoc","indexBidOk"]}`, energyId, bidPrice)
 
+	energy, err := s.ReadToken(ctx, energyId)
+	if err != nil {
+		return false, err
+	}
+
 	bidList, err := s.Query(ctx, queryString)
 	if err != nil {
 		return false, err
@@ -465,14 +470,18 @@ func (s *SmartContract) BidOk(ctx contractapi.TransactionContextInterface, energ
 		return true, nil
 	}
 
+	var bidListTotalAmount float64 = 0
 	for _, b := range bidList {
 		if (b.BidPrice > bidPrice) {
-			return false, nil
-		} 
-		if (b.BidPrice == bidPrice && b.Priority >= priority) {
+			bidListTotalAmount += b.BidAmount
+		} else if (b.BidPrice == bidPrice && b.Priority >= priority) {
+			bidListTotalAmount += b.BidAmount
+		}
+		if (bidListTotalAmount >= energy.Amount - energy.SoldAmount) {
 			return false, nil
 		}
 	}
+
 
 	return true, nil
 

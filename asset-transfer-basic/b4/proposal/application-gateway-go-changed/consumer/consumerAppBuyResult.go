@@ -39,7 +39,7 @@ func BidResult(contract *client.Contract, bidEnergies []Energy, data Data) (Data
 				if err != nil {
 					return
 				}
-				fmt.Printf("read bid token: ID: %s, energyID: %s, Status: %s, count: %d", bidToken.ID, bidToken.EnergyID, bidToken.Status, i)
+				// fmt.Printf("read bid token: ID: %s, energyID: %s, Status: %s, count: %d", bidToken.ID, bidToken.EnergyID, bidToken.Status, i)
 				if (bidToken.Status == "success") {
 					bidEnergies[n] = bidToken	
 				}
@@ -77,7 +77,7 @@ func BidResult(contract *client.Contract, bidEnergies []Energy, data Data) (Data
 func readToken(contract *client.Contract, id string) (Energy, error) {
 	// endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 	var energy Energy
-	fmt.Printf("Async Submit Transaction: ReadToken: %s\n", id)
+	// fmt.Printf("Async Submit Transaction: ReadToken: %s\n", id)
 
 	queryLoop:
 	for {
@@ -93,7 +93,7 @@ func readToken(contract *client.Contract, id string) (Energy, error) {
 			if(err != nil) {
 				fmt.Printf("unmarshal error in queryInBidResult\n")
 			} else {
-				fmt.Printf("%s break queryLoop\n", id)
+				// fmt.Printf("%s break queryLoop\n", id)
 				break queryLoop
 			}
 		} 	

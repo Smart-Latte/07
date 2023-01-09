@@ -121,7 +121,7 @@ func main() {
 }
 
 func DbResister(bidTokens []Energy, energyTokens []Energy) {
-	db, err :=  sql.Open("sqlite3", "db/20230106.db")
+	db, err :=  sql.Open("sqlite3", "db/test1.db")
 	if err != nil {
 		panic(err)
 	}

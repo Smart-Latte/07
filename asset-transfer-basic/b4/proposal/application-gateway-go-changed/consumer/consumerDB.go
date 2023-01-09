@@ -16,8 +16,9 @@ func DbResister(dataList [][]Data) {
 	}
 	defer db.Close()
 
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "ConsumerData" ("ID" INTEGER PRIMARY KEY, "UserName" TEXT, "Latitude" REAL, "Longitude" REAL, "TotalAmountWanted" REAL, 
-	"FirstBidTime" INTEGER, "LastBidTime" INTEGER, "BatteryLife" REAL, "Requested" REAL, "BidAmount" REAL, "BidSolar" REAL, "BidWind" REAL, "BidThermal" REAL, 
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS "ConsumerData" ("ID" TEXT PRIMARY KEY, "UserName" TEXT, "Latitude" REAL, "Longitude" REAL, 
+	"TotalAmountWanted" REAL, "FirstBidTime" INTEGER, "LastBidTime" INTEGER, "BatteryLife" REAL, "Requested" REAL, 
+	"BidAmount" REAL, "BidSolar" REAL, "BidWind" REAL, "BidThermal" REAL, 
 	"GetAmount" REAL, "GetSolar" REAL, "GetWind" REAL, "GetThermal" REAL)`)
 	if err != nil {
 		panic(err)
@@ -28,7 +29,8 @@ func DbResister(dataList [][]Data) {
 		panic(err)
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO ConsumerData (ID, UserName, Latitude, Longitude, TotalAmountWanted, FirstBidTime, LastBidTime, BatteryLife, Requested, BidAmount, BidSolar, 
+	stmt, err := tx.Prepare(`INSERT INTO ConsumerData (ID, UserName, Latitude, Longitude, TotalAmountWanted, 
+		FirstBidTime, LastBidTime, BatteryLife, Requested, BidAmount, BidSolar, 
 		BidWind, BidThermal, GetAmount, GetSolar, GetWind, GetThermal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		panic(err)
@@ -38,11 +40,14 @@ func DbResister(dataList [][]Data) {
 
 	for i := 0; i < len(dataList); i++ {
 		for j := 0; j < len(dataList[i]); j++ {
-			id := fmt.Sprintf("%d-%d-%s", time.Now().Unix(), dataList[i][j].LastBidTime, dataList[i][j].UserName)
-			_, err := stmt.Exec(id, dataList[i][j].UserName, dataList[i][j].Latitude, dataList[i][j].Longitude, dataList[i][j].TotalAmountWanted, dataList[i][j].FirstBidTime,
-			dataList[i][j].LastBidTime, dataList[i][j].BatteryLife, dataList[i][j].Requested, dataList[i][j].BidAmount, dataList[i][j].BidSolar, 
-			dataList[i][j].BidWind, dataList[i][j].BidThermal, dataList[i][j].GetAmount, dataList[i][j].GetSolar, dataList[i][j].GetWind, dataList[i][j].GetThermal)
+			id := fmt.Sprintf("%v%v-%v-%v", time.Now().Unix(), j, dataList[i][j].LastBidTime, dataList[i][j].UserName)
+			_, err := stmt.Exec(id, dataList[i][j].UserName, dataList[i][j].Latitude, dataList[i][j].Longitude, 
+				dataList[i][j].TotalAmountWanted, dataList[i][j].FirstBidTime, dataList[i][j].LastBidTime, 
+				dataList[i][j].BatteryLife, dataList[i][j].Requested, dataList[i][j].BidAmount, dataList[i][j].BidSolar, 
+				dataList[i][j].BidWind, dataList[i][j].BidThermal, dataList[i][j].GetAmount, dataList[i][j].GetSolar, 
+				dataList[i][j].GetWind, dataList[i][j].GetThermal)
 			if err != nil {
+				fmt.Printf("i: %v, j: %v, id: %v\n", i, j, id)
 				panic(err)
 			}
 		}
@@ -52,7 +57,7 @@ func DbResister(dataList [][]Data) {
 	//tx.Rollback()
 
 	rows, err := db.Query(
-		`SELECT * FROM Data`,
+		`SELECT * FROM ConsumerData`,
 	)
 	if err != nil {
 		panic(err)

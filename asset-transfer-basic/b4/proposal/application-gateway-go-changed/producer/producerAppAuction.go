@@ -23,7 +23,13 @@ func Auction(contract *client.Contract, energy Energy) {
 		timestamp := (time.Now().Unix() -Diff - StartTime) * Speed + StartTime
 
 		// fmt.Printf("auctionEndCall: id: %s, count: %d\n", energy.ID, auctionEndCount)
-		isSold := auctionEnd(contract, energy, timestamp)
+		isSold, err := auctionEnd(contract, energy, timestamp)
+		if err != nil {
+			log.Println(err)
+			endTimer.Stop()
+			ticker.Stop()
+			panic(err)
+		}
 		if isSold {
 			return
 		}
@@ -33,9 +39,16 @@ func Auction(contract *client.Contract, energy Energy) {
 			select {
 			case <- ticker.C:
 				timestamp := (time.Now().Unix() -Diff - StartTime) * Speed + StartTime
-				log.Printf("auctionEndCall: id: %s, count: %d, timestamp: %d\n", energy.ID, auctionEndCount, timestamp)
+				// log.Printf("auctionEndCall: id: %s, count: %d, timestamp: %d\n", energy.ID, auctionEndCount, timestamp)
 				
-				isSold := auctionEnd(contract, energy, timestamp)
+				isSold, err := auctionEnd(contract, energy, timestamp)
+				if err != nil {
+					fmt.Println(err)
+					endTimer.Stop()
+					ticker.Stop()
+					panic(err)
+				}
+				
 				if isSold {
 					ticker.Stop()
 					return
@@ -52,7 +65,7 @@ func Auction(contract *client.Contract, energy Energy) {
 
 }
 
-func auctionEnd(contract *client.Contract, energy Energy, timestamp int64) bool {
+func auctionEnd(contract *client.Contract, energy Energy, timestamp int64) (bool, error) {
 	isSold := false
 	var message string
 	var err error
@@ -61,14 +74,18 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp int64) bool 
 	var soldAmount float64 = 0
 	bidList, err := auctionEndQuery(contract, energy.ID, timestamp)
 	if err != nil {
-		// timeup
-		return true
+		if err.Error() == "time up" {
+			// timeup
+			return true, nil
+		} else {
+			return false, err
+		}
 	}
 	if (timestamp <= energy.GeneratedTime + TokenLife * 60 && len(bidList) == 0) {
-		log.Printf("%s auction end : no bidList, %v, now:%v\n", energy.ID, timestamp, ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime))
-		return isSold
+		// log.Printf("%s auction end : no bidList, %v, now:%v\n", energy.ID, timestamp, ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime))
+		return isSold, nil
 	}
-	log.Printf("%s length : %d\n", energy.ID, len(bidList))
+	// log.Printf("%s length : %d\n", energy.ID, len(bidList))
 	for i := 0; i < len(bidList); i++ {
 		if (bidList[i].BidAmount < energy.Amount) {
 			input := EndInput{ID: bidList[i].ID, Amount:bidList[i].BidAmount}
@@ -85,27 +102,31 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp int64) bool 
 		}
 	}
 	energyInput := EndInput{ID: energy.ID, Amount: soldAmount, Time: timestamp}
-	log.Printf("%s soldAmount: %v\n", energy.ID, soldAmount)
+	// log.Printf("%s soldAmount: %v\n", energy.ID, soldAmount)
 	if (len(bidInput) == 0) {
 		bidInput = append(bidInput, EndInput{ID: "old", Amount: 0})
 	}
 	message, err = auctionEndTransaction(contract, energyInput, bidInput)
 	if err != nil {
 		// timeup
-		return true
+		if err.Error() == "time up" {
+			return true, nil
+		} else {
+			return false, err
+		}
 	}
-	log.Printf("producer auction end: %s, %s, %s %vWh\n", energy.Producer, energy.ID, message, energyInput.Amount)
+// 	log.Printf("producer auction end: %s, %s, %s %vWh\n", energy.Producer, energy.ID, message, energyInput.Amount)
 	if (message == "the energy was generated more than 30min ago. This was not sold." || message == "auction end") {
 		isSold = true
 	}
 
-	return isSold
+	return isSold, nil
 }
 
 func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64) ([]Energy, error) {
 	var bidList []Energy
 	sTimestamp := fmt.Sprintf("%v", timestamp)
-
+	loopCount := 0
 	queryLoop:
 	for {
 		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
@@ -113,7 +134,11 @@ func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64
 		}
 		evaluateResult, err := contract.EvaluateTransaction("AuctionEndQuery", energyId, sTimestamp)
 		if err != nil {
-			log.Printf("auction end query error: %v\n", err.Error())
+			// log.Printf("auction end query error: %v\n", err.Error())
+			loopCount++
+			if loopCount > 5 {
+				return bidList, err
+			}
 		} else {
 			if (len(evaluateResult) == 0) {
 				return bidList, nil
@@ -151,7 +176,7 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 	if err != nil {
 		panic(err)
 	}
-
+	loopCount := 0
 	loop:
 	for {
 		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
@@ -159,7 +184,11 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 		}
 		submitResult, err := contract.SubmitTransaction("AuctionEnd", string(energyJSON), string(bidJSON))
 		if err != nil {
-			log.Printf("producer auction end error: %v\n", err.Error())
+			loopCount++
+			if (loopCount > 5) {
+				return "", err
+			}
+			// log.Printf("producer auction end error: %v\n", err.Error())
 			if (err.Error() == "energy amount is wrong" || err.Error() == "the energy is alive" || err.Error() == "energy ID is wrong" || err.Error() == "bid amount is wrong") {
 				return message, nil
 			}

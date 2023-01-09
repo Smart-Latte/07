@@ -115,7 +115,7 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 			for {
 				if (float64(thisTimeCounter) >= 60 * 60 / thisTiming) {
 					ticker.Stop()
-					fmt.Printf("producer counter:%d, this time counter:%d\n", counter, thisTimeCounter)
+					// fmt.Printf("producer counter:%d, this time counter:%d\n", counter, thisTimeCounter)
 					break
 				}
 				// ログ
@@ -143,5 +143,6 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 			// id string, latitude float64, longitude float64, producer string, amount float64, largeCategory string, smallCategory string, timestamp int64)
 			}
 		}
+	fmt.Printf("%s finish\n", username)
 	wg.Wait()
  }
