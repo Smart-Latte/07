@@ -9,7 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func DbResister(dataList [][]Data) {
+func DbResister(dataList [][][]Data) {
 	db, err :=  sql.Open("sqlite3", "db/test1.db")
 	if err != nil {
 		panic(err)
@@ -40,16 +40,19 @@ func DbResister(dataList [][]Data) {
 
 	for i := 0; i < len(dataList); i++ {
 		for j := 0; j < len(dataList[i]); j++ {
-			id := fmt.Sprintf("%v%v-%v-%v", time.Now().Unix(), j, dataList[i][j].LastBidTime, dataList[i][j].UserName)
-			_, err := stmt.Exec(id, dataList[i][j].UserName, dataList[i][j].Latitude, dataList[i][j].Longitude, 
-				dataList[i][j].TotalAmountWanted, dataList[i][j].FirstBidTime, dataList[i][j].LastBidTime, 
-				dataList[i][j].BatteryLife, dataList[i][j].Requested, dataList[i][j].BidAmount, dataList[i][j].BidSolar, 
-				dataList[i][j].BidWind, dataList[i][j].BidThermal, dataList[i][j].GetAmount, dataList[i][j].GetSolar, 
-				dataList[i][j].GetWind, dataList[i][j].GetThermal)
-			if err != nil {
-				fmt.Printf("i: %v, j: %v, id: %v\n", i, j, id)
-				panic(err)
+			for k := 0; k < len(dataList[i][j]); k++ {
+				id := fmt.Sprintf("%v%v%v-%v-%v", time.Now().Unix(), j, k, dataList[i][j][k].LastBidTime, dataList[i][j][k].UserName)
+				_, err := stmt.Exec(id, dataList[i][j][k].UserName, dataList[i][j][k].Latitude, dataList[i][j][k].Longitude, 
+					dataList[i][j][k].TotalAmountWanted, dataList[i][j][k].FirstBidTime, dataList[i][j][k].LastBidTime, 
+					dataList[i][j][k].BatteryLife, dataList[i][j][k].Requested, dataList[i][j][k].BidAmount, dataList[i][j][k].BidSolar, 
+					dataList[i][j][k].BidWind, dataList[i][j][k].BidThermal, dataList[i][j][k].GetAmount, dataList[i][j][k].GetSolar, 
+					dataList[i][j][k].GetWind, dataList[i][j][k].GetThermal)
+				if err != nil {
+					fmt.Printf("i: %v, j: %v, k: %v, id: %v\n", i, j, k, id)
+					panic(err)
+				}
 			}
+			
 		}
 
 	}

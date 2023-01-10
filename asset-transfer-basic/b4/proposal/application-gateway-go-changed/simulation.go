@@ -37,10 +37,10 @@ func main() {
 	startTime := time.Date(2015, time.March, 27, startHour, 0, 0, 0, time.Local).Unix()
 	nowTime := time.Now().Unix()
 	diff := nowTime - startTime
-	endTime := time.Date(2015, time.March, 27, startHour + 24, 0, 0, 0, time.Local).Unix()
+	endTime := time.Date(2015, time.March, 27, startHour + 2, 0, 0, 0, time.Local).Unix()
 	var interval int64 = 1
 	var tokenLife int64 = 30
-	var speed int64 = 6
+	var speed int64 = 2
 	var wg sync.WaitGroup
 
 	oprt.InitOperator()

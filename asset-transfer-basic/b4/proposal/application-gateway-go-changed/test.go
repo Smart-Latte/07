@@ -8,7 +8,8 @@ import (
 	"time"
 	"log"
 	"sort"
-	"strconv"
+	"strings"
+	//"strconv"
 
 	"encoding/json"
 
@@ -64,6 +65,12 @@ type EndInput struct {
 	ID string `json:"ID"`
 	Amount float64 `json:"Amount"`
 	Time int64 `json:"Time"`
+}
+
+type BidReturn struct {
+	ID string `json:"ID"`
+	Message string `json:"Message"`
+	Error error `json:"Error"`
 }
 
 const (
@@ -130,11 +137,75 @@ func main() {
 	}
 	fmt.Println(energy)
 
+	energy2, err := createEnergyToken2(contract)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(energy2)
+
 	b, err := bidOk(contract)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	fmt.Println(b)
+
+	energy.DocType = "bid"
+	energy.EnergyID = energy.ID
+	energy.ID = "bid01"
+	energy.Owner = "mayuko"
+	energy.Priority = 0.5
+	energy.BidAmount = 1000
+	energy.BidPrice = 0.04
+	energy.BidTime = 1427402500
+
+	energy2.DocType = "bid"
+	energy2.EnergyID = energy2.ID
+	energy2.ID = "bid02"
+	energy2.Owner = "mayuko"
+	energy2.Priority = 0.5
+	energy2.BidAmount = 500
+	energy2.BidPrice = 0.04
+	energy2.BidTime = 1427402500
+
+	var energies []Energy
+	energies = append(energies, energy)
+	energies = append(energies, energy2)
+	out, errList := bidOnEnergy2(contract, energies)
+	if len(errList) != 0 {
+		fmt.Println(err)
+	} else {
+		for _, o := range out {
+			fmt.Println(o)
+		}
+	}
+
+	renergy1, _ := readToken(contract ,"test01")
+	fmt.Println(renergy1)
+	renergy2, _ := readToken(contract, "test02")
+	fmt.Println(renergy2)
+	bid1, err := readToken(contract, "bid01")
+	if (err != nil ) {
+		fmt.Println(err)
+	} else {
+		fmt.Println(bid1)
+	}
+	bid2, err := readToken(contract, "bid02")
+	if (err != nil ) {
+		fmt.Println(err)
+	} else {
+		fmt.Println(bid2)
+	}
+	b1, err := bidOk(contract)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(b1)
+
+	b2, err := bidOk2(contract)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(b2)
 
 	/*fmt.Println(energy)
 	bidOnEnergy(contract, "bid01", 0.026, "user1", 0.09, 100, "1427402500")
@@ -188,30 +259,56 @@ func main() {
 
 }
 
-func bidOk(contract *client.Contract) (bool, error){
+func bidOk(contract *client.Contract) (string, error){
 	sBidPrice := fmt.Sprintf("%v", 0.03)
 	sPriority := fmt.Sprintf("%v", 0.09)
-	isOk := true
-
+	//isOk := true
+	var result string
 	fmt.Println(sBidPrice)
 	fmt.Println(sPriority)
 
-		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+	/*	if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return false, fmt.Errorf("time up")
-		}
+		}*/
 		evaluateResult, err := contract.SubmitTransaction("BidOk", "test01", sBidPrice, sPriority)
 		if err != nil {
 			log.Printf("bid ok error: %v\n", err.Error())
 		} else {
-			result := string(evaluateResult)
-			isOk, err = strconv.ParseBool(result)
+			result = string(evaluateResult)
+			/*isOk, err = strconv.ParseBool(result)
 			if err != nil {
 				log.Printf("parse string to bool error:%v\n", err.Error())
-			}
+			}*/
 		}
 
-	return isOk, nil
+	return result, nil
 }
+func bidOk2(contract *client.Contract) (string, error){
+	sBidPrice := fmt.Sprintf("%v", 0.03)
+	sPriority := fmt.Sprintf("%v", 0.09)
+	//isOk := true
+	var result string
+
+	fmt.Println(sBidPrice)
+	fmt.Println(sPriority)
+
+		/*if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+			return false, fmt.Errorf("time up")
+		}*/
+		evaluateResult, err := contract.SubmitTransaction("BidOk", "test02", sBidPrice, sPriority)
+		if err != nil {
+			log.Printf("bid ok error: %v\n", err.Error())
+		} else {
+			result = string(evaluateResult)
+			/*isOk, err = strconv.ParseBool(result)
+			if err != nil {
+				log.Printf("parse string to bool error:%v\n", err.Error())
+			}*/
+		}
+
+	return result, nil
+}
+
 func Init(contract *client.Contract) {
 	fmt.Printf("Submit Transaction: InitLedger, function creates the initial set of assets on the ledger \n")
 
@@ -235,6 +332,39 @@ func createEnergyToken(contract *client.Contract) (Energy, error) {
 	}
 	return energy, nil
 
+}
+
+func createEnergyToken2(contract *client.Contract) (Energy, error) {
+	var energy Energy
+	evaluateResult, err := contract.SubmitTransaction("CreateEnergyToken", "test02", "40", "140", "producer", "1000", "Green", "solar", "1427402475")
+	if err != nil {
+		return energy, err
+	}
+	err = json.Unmarshal(evaluateResult, &energy)
+	if err != nil {
+		return energy, err
+	}
+	return energy, nil
+
+}
+
+func bidOnEnergy2(contract *client.Contract, energies []Energy) ([]string, []string) {
+	var errList []string
+	var messageList []string
+	energyJSON, err := json.Marshal(energies)
+	if err != nil {
+		panic(err)
+	}
+	//var out []BidReturn
+	evaluateResult, err := contract.SubmitTransaction("BidOnEnergy", string(energyJSON))
+	if err != nil {
+		errList = strings.Split(err.Error(), ",")
+		fmt.Println(err.Error())
+	} else {
+		message := string(evaluateResult)
+		messageList = strings.Split(message, ",")
+	}
+	return messageList, errList
 }
 
 func bidOnEnergy(contract *client.Contract, bidId string, bidPrice float64, username string, batteryLife float64, amount float64, timestamp string) {

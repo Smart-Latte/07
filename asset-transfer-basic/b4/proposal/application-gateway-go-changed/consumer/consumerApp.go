@@ -54,24 +54,24 @@ type ResultInput struct {
 	EndTime int64
 }*/
 
-func Morning(contract *client.Contract, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
-	username := fmt.Sprintf("morningUser%v", seed)
+func Morning(contract *client.Contract, peer string, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("%vmorningUser%v", peer, seed)
 	rand.Seed(seed)
 	add := rand.Intn(4)
 	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 1, seed)
 	return DataList
 }
 
-func Night(contract *client.Contract, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
-	username := fmt.Sprintf("nightUser%v", seed)
+func Night(contract *client.Contract, peer string, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("%vnightUser%v", peer, seed)
 	rand.Seed(seed)
 	add := 12 + rand.Intn(4)
 	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 1, seed)
 	return DataList
 }
 
-func Fast(contract *client.Contract, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
-	username := fmt.Sprintf("fastUser%v" ,seed)
+func Fast(contract *client.Contract, peer string, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("%vfastUser%v" ,peer, seed)
 	rand.Seed(seed)
 	add := rand.Intn(11)
 	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 0.8, seed)
@@ -109,7 +109,12 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 	var beforeUse float64 = 0
 	var err error
 
-	<- timer.C
+	select {
+	case <- endTimer.C:
+		timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+		fmt.Printf("CONSUMER END TIMER new: %v\n", time.Unix(timestamp, 0))
+	case <- timer.C:
+	}
 
 	// ticker := time.NewTicker(time.Duration(Interval) * time.Minute / time.Duration(Speed))
 	zeroCount := 0

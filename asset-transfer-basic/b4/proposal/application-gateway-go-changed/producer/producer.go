@@ -146,22 +146,18 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 		Produce(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 100000, thermalOutput, 4)
 	}()
 
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 4; i++ { // 4
 		wg.Add(2)
 		go func(n int) {
 			defer wg.Done()
-			// DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40, 41, 140, 141, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
-			// DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, "wind", 11000, 12.5, 2.5, WindOutput, int64(n + 1000))
-			// DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40, 41, 140, 141, "solar", 4000, SolarOutput, int64(n + 10000))
 			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "solar", 40000, SolarOutput, int64(n + 10000))
+			// DummySolarProducer(contract, fmt.Sprintf("solarProducer%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "solar", 4000, SolarOutput, int64(n + 10000))
 
 		}(i)
 		go func(n int) {
-			defer wg.Done( )
-			// DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40, 41, 140, 141, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
+			defer wg.Done()
 			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "wind", 11000, 12.5, 2.5, WindOutput, int64(n + 1000))
-			// DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40, 41, 140, 141, "solar", 4000, SolarOutput, int64(n + 10000))
-			// DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.17463042136363, 40.1932732666231, 139.992165531859, 140.068615482843, "solar", 40000, SolarOutput, int64(n + 10000))
+			// DummyWindProducer(contract, fmt.Sprintf("windProducer%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
 		}(i)
 	}
 	wg.Wait()

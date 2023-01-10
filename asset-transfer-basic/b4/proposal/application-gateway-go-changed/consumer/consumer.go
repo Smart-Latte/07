@@ -19,15 +19,7 @@ import (
 )
 
 const (
-	mspID         = "Org2MSP"
-	cryptoPath    = "../../../../test-network/organizations/peerOrganizations/org2.example.com"
-	certPath      = cryptoPath + "/users/User1@org2.example.com/msp/signcerts/cert.pem"
-	keyPath       = cryptoPath + "/users/User1@org2.example.com/msp/keystore/"
-	tlsCertPath   = cryptoPath + "/peers/peer0.org2.example.com/tls/ca.crt"
-	peerEndpoint  = "localhost:9051"
-	gatewayPeer   = "peer0.org2.example.com"
-	channelName   = "mychannel"
-	chaincodeName = "basic"
+	
 )
 
 type Energy struct {
@@ -52,10 +44,6 @@ type Energy struct {
 	Error string `json:"Error"`
 }
 
-var startTime time.Time // シミュレーション開始時間
-var auctionInterval time.Duration // オークション時間
-var speed int // 何倍速か
-
 var StartTime int64
 var EndTime int64
 var Diff int64
@@ -63,17 +51,64 @@ var Speed int64
 var Interval int64
 var TokenLife int64
 var StartHour int
+var userNum int
+var peerMax int
 
 // ゴールーチンで各ユーザ起動
 // input: シミュレーション開始時間
 
 func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctionInterval int64, life int64, startHour int) {
-	// The gRPC client connection should be shared by all Gateway connections to this endpoint
-	clientConnection := newGrpcConnection()
-	defer clientConnection.Close()
+	StartTime = start
+	EndTime = end
+	Diff = diff
+	StartHour = startHour
+	fmt.Println(StartTime)
+	Speed = auctionSpeed
+	Interval = auctionInterval
+	TokenLife = life
 
-	id := newIdentity()
-	sign := newSign()
+	userNum = 210 //105 420
+	peerMax = 2
+
+	userData := [][][]Data{}
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		userData = append(userData, [][]Data{})
+		userData[0] = peerConsumer("peer0", "9051", 0)
+	}()
+	go func() {
+		defer wg.Done()
+		userData = append(userData, [][]Data{})
+		userData[1] = peerConsumer("peer1", "8051", 1)
+	}()
+
+	wg.Wait()
+
+	DbResister(userData)
+
+}
+
+func peerConsumer(peer string, port string, peerNo int) [][]Data {
+	// The gRPC client connection should be shared by all Gateway connections to this endpoint
+	mspID         := "Org2MSP"
+	cryptoPath    := "../../../../test-network/organizations/peerOrganizations/org2.example.com"
+	certPath      := cryptoPath + "/users/User1@org2.example.com/msp/signcerts/cert.pem"
+	keyPath      := cryptoPath + "/users/User1@org2.example.com/msp/keystore/"
+	tlsCertPath   := cryptoPath + "/peers/" + peer + ".org2.example.com/tls/ca.crt"
+	peerEndpoint  := "localhost:" + port //9051 //8051
+	gatewayPeer   := peer + ".org2.example.com"
+	channelName   := "mychannel"
+	chaincodeName := "basic"
+	
+	clientConnection := newGrpcConnection(tlsCertPath, gatewayPeer, peerEndpoint)
+	defer clientConnection.Close()
+	
+	id := newIdentity(certPath, mspID)
+	sign := newSign(keyPath)
 
 	// Create a Gateway connection for a specific client identity
 	gateway, err := client.Connect(
@@ -94,14 +129,6 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 	network := gateway.GetNetwork(channelName)
 	contract := network.GetContract(chaincodeName)
 
-	StartTime = start
-	EndTime = end
-	Diff = diff
-	StartHour = startHour
-	fmt.Println(StartTime)
-	Speed = auctionSpeed
-	Interval = auctionInterval
-	TokenLife = life
 
 	userData := [][]Data{}
 
@@ -110,14 +137,14 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 
 	// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1), seed
 	var wg sync.WaitGroup
-	userNum := 210 //420
 
 	for i := 0; i < userNum; i++ {
 		wg.Add(1)
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n] = Morning(contract, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 40000, 8, int64(n))
+			userData[n] = Morning(contract, peer, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 
+				40000, 8, int64(userNum * peerNo + n))
 		}(i)
 	}
 
@@ -126,7 +153,8 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n + userNum] = Night(contract, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 40000, 8, int64(n + userNum))
+			userData[n + userNum] = Night(contract, peer, 40.1932732666231, 40.2297629645958, 139.992165531859, 
+				140.068615482843, 40000, 8, int64(userNum * (peerMax + peerNo) + n))
 		}(i)
 	}
 
@@ -135,7 +163,8 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n + 2 * userNum] = Fast(contract, 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, 40000, 0.66, int64(n + 2 *userNum))
+			userData[n + 2 * userNum] = Fast(contract, peer, 40.1932732666231, 40.2297629645958, 139.992165531859, 
+				140.068615482843, 40000, 0.66, int64(userNum * (2 * peerMax + peerNo) + n))
 		}(i)
 	}
 
@@ -145,7 +174,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		Produce(contract, "real-wind-producer1", 140.010266575019, 140.014538870921, "wind", 12000000, WindOutput, 2)
 	}()*/
 	wg.Wait()
-	fmt.Println("all consumer end")
+	fmt.Printf("%v consumer end", peer)
 	for i := 0; i < len(userData); i++ {
 		// fmt.Printf("%s result:\n", userData[i][0].UserName)
 		for _, user := range userData[i] {
@@ -156,12 +185,14 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 		fmt.Println("")
 	}
 
-	DbResister(userData)
+	// DbResister(userData)
+
+	return userData
 	
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
-func newGrpcConnection() *grpc.ClientConn {
+func newGrpcConnection(tlsCertPath string, gatewayPeer string, peerEndpoint string) *grpc.ClientConn {
 	certificate, err := loadCertificate(tlsCertPath)
 	if err != nil {
 		panic(err)
@@ -180,7 +211,7 @@ func newGrpcConnection() *grpc.ClientConn {
 }
 
 // newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
-func newIdentity() *identity.X509Identity {
+func newIdentity(certPath string, mspID string) *identity.X509Identity {
 	certificate, err := loadCertificate(certPath)
 	if err != nil {
 		panic(err)
@@ -203,7 +234,7 @@ func loadCertificate(filename string) (*x509.Certificate, error) {
 }
 
 // newSign creates a function that generates a digital signature from a message digest using a private key.
-func newSign() identity.Sign {
+func newSign(keyPath string) identity.Sign {
 	files, err := ioutil.ReadDir(keyPath)
 	if err != nil {
 		panic(fmt.Errorf("failed to read private key directory: %w", err))

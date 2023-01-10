@@ -8,9 +8,10 @@ import (
 	"strconv"
 	"math"
 	"sort"
-	"sync"
+	//"sync"
 	"math/rand"
 	"log"
+	"strings"
 	//"net/http"
 	
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -66,18 +67,16 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 		distance := distance(data.Latitude, data.Longitude, energy.Latitude, energy.Longitude)
 		if (distance <= searchRange && generatedTimeCompare < energy.GeneratedTime) {
 			myBidPrice := energy.UnitPrice + distance * pricePerMater
-			isOk, err := bidOk(contract, energy.ID, myBidPrice, (1 - data.BatteryLife))
-			if err != nil {
-				return success, data, nil
-			}
-			/*if (myBidPrice > energy.BidPrice || (myBidPrice == energy.BidPrice && (1 - data.BatteryLife) > energy.Priority)) {
-				energy.BidPrice = myBidPrice
-				validEnergies = append(validEnergies, energy)
-			}*/
+			isOk, _ := bidOk(contract, energy.ID, myBidPrice, (1 - data.BatteryLife))
 			if isOk {
 				energy.BidPrice = myBidPrice
 				validEnergies = append(validEnergies, energy)
 			}
+			
+			/*if (myBidPrice > energy.BidPrice || (myBidPrice == energy.BidPrice && (1 - data.BatteryLife) > energy.Priority)) {
+				energy.BidPrice = myBidPrice
+				validEnergies = append(validEnergies, energy)
+			}*/
 			// fmt.Println("it's valid")
 			// fmt.Printf("id:%s, latitude:%g, longitude:%g, unitPrice:%g, distance:%g, bidPrice:%g\n", 
 			// energy.ID, energy.Latitude, energy.Longitude, energy.UnitPrice, distance, energy.BidPrice)
@@ -193,7 +192,7 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 	// return successList, autcionStartMin, err
 }
 
-func bid(contract *client.Contract, energies []Energy, tokenCount int, data Data) ([]Energy, float64) {
+/*func bidold(contract *client.Contract, energies []Energy, tokenCount int, data Data) ([]Energy, float64) {
 	successEnergy := []Energy{}
 	//leftEnergy := energies
 	
@@ -243,11 +242,73 @@ func bid(contract *client.Contract, energies []Energy, tokenCount int, data Data
 	// fmt.Println(successEnergy)
 
 	return successEnergy, successAmount
+}*/
+
+func bid(contract *client.Contract, energies []Energy, tokenCount int, data Data) ([]Energy, float64) {
+	successEnergy := []Energy{}
+	var successAmount float64
+
+	for i := 0; i < tokenCount; i++ {
+		timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+		rand.Seed(time.Now().UnixNano())
+		energies[i].EnergyID = energies[i].ID
+		energies[i].ID = fmt.Sprintf("%v%s%s-%d", timestamp, energies[i].EnergyID, data.UserName, rand.Intn(10000))
+		energies[i].Owner = data.UserName
+		energies[i].BidAmount = energies[i].Amount
+		energies[i].BidTime = timestamp
+	}
+	idList, err := bidOnEnergy(contract, energies)
+	if err != nil {
+		return successEnergy, 0
+	}
+
+	for i := 0; i < tokenCount; i++ {
+		for _, id := range idList {
+			if energies[i].ID == id {
+				successEnergy = append(successEnergy, energies[i])
+				successAmount += energies[i].Amount
+				break
+			} 
+		}
+	}
+
+	return successEnergy, successAmount
+}
+
+func bidOnEnergy(contract *client.Contract, energies []Energy) ([]string, error) {
+	var messageList []string
+	energyJSON, err := json.Marshal(energies)
+	if err != nil {
+		panic(err)
+	}
+	//var out []BidReturn
+	count := 0
+	bidLoop:
+	for {
+		evaluateResult, err := contract.SubmitTransaction("BidOnEnergy", string(energyJSON))
+		if len(evaluateResult) > 0 {
+			message := string(evaluateResult)
+			messageList = strings.Split(message, ",")
+			if err != nil {
+				fmt.Println(err.Error())
+			} 
+			break bidLoop
+		} else {
+			count++
+			if count > 3 {
+				break bidLoop
+				return messageList, fmt.Errorf("no bid")
+			}
+		}
+	}
+	
+	
+	return messageList, nil
 }
 
 // id string, newOwner string, newBidPrice float64, priority float64, amount float64, timestamp int64, newID string
 //  energies[i].LargeCategory, energies[i].SmallCategory, energies[i].UnitPrice)
-func bidOnEnergy(contract *client.Contract, energyId string, bidPrice float64, username string, batteryLife float64, amount float64, lCat string, sCat string, unitPrice float64) (string, int64, string, error) {
+func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64, username string, batteryLife float64, amount float64, lCat string, sCat string, unitPrice float64) (string, int64, string, error) {
 	//fmt.Printf("Evaluate Transaction: BidOnToken, function returns asset attributes\n")
 	// endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 
@@ -274,20 +335,26 @@ func bidOnEnergy(contract *client.Contract, energyId string, bidPrice float64, u
 		case <- endTimer.C:
 			return message, timestamp, bidId, fmt.Errorf("time up")
 		default:*/
-		submitResult, err := contract.SubmitTransaction("BidOnEnergy", bidId, energyId, username, sBidPrice, sPriority, sAmount, sTimestamp, lCat, sCat, sUnitPrice)
+		isOk, err := bidOk(contract, energyId, bidPrice, (1 - batteryLife))
 		if err != nil {
-			// log.Printf("%s, bid error: %s, %v\n", username, energyId, err)
-			// rand.Seed(time.Now().UnixNano())
-			// timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
-			count++
-			if count > 3 {
-				return "", timestamp, bidId, err
+			// err
+		}
+		if isOk {
+			submitResult, err := contract.SubmitTransaction("BidOnEnergy", bidId, energyId, username, sBidPrice, sPriority, sAmount, sTimestamp, lCat, sCat, sUnitPrice)
+			if err != nil {
+				// log.Printf("%s, bid error: %s, %v\n", username, energyId, err)
+				// rand.Seed(time.Now().UnixNano())
+				// timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
+				count++
+				if count > 3 {
+					return "", timestamp, bidId, err
+				}
+				// <- timer.C
+			} else {
+				message = string(submitResult)
+				// log.Printf("%s, bid on %s time: %s, now: %v, message: %s\n", username, energyId, sTimestamp, ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime), message)
+				break bidLoop
 			}
-			// <- timer.C
-		} else {
-			message = string(submitResult)
-			// log.Printf("%s, bid on %s time: %s, now: %v, message: %s\n", username, energyId, sTimestamp, ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime), message)
-			break bidLoop
 		}
 	}
 	return message, timestamp, bidId, nil
@@ -373,6 +440,7 @@ func queryByLocationRange(contract *client.Contract, consumer string, lowerLat f
 			log.Printf("queryByLocationRange error: %s, %v\n", consumer, err.Error())
 			// panic(fmt.Errorf("failed to evaluate transaction: %w", err))
 		} else {
+			log.Printf("query success: %s\n", consumer)
 			err = json.Unmarshal(evaluateResult, &result)
 			if (err != nil && len(evaluateResult) > 0) {
 				log.Printf("unmarshal error: %v\n", err.Error())

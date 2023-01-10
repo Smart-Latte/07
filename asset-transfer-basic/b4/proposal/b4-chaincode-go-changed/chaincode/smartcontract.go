@@ -37,14 +37,19 @@ type Energy struct {
 	Status           string    `json:"Status"`
 }
 
-type Output struct {
+/*type Output struct {
 	Message string `json:"Message"`
 	Amount float64 `json:"Amount"`
-}
+}*/
 type Input struct {
 	ID string 	`json:"ID"`
 	Amount float64 	`json:"Amount"`
 	Time int64 `sjon:"Time"`
+}
+type BidReturn struct {
+	ID string `json:"ID"`
+	Message string `json:"Message"`
+	Error error `json:"Error"`
 }
 
 const (
@@ -152,7 +157,7 @@ func (s *SmartContract) CreateEnergyToken(ctx contractapi.TransactionContextInte
 
 // TransferAsset updates the owner field of asset with given id in world state, and returns the old owner.
 // 購入する
-func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface, 
+/*func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface, 
 	bidId string, energyId string, bidder string, bidPrice float64, priority float64, amount float64, timestamp int64, lCat string, sCat string, unitPrice float64) (string, error) {
 	
 	exists, err := s.EnergyExists(ctx, bidId)
@@ -192,6 +197,62 @@ func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface,
 	}
 
 	return "your bid is accepted", nil
+}*/
+
+func (s *SmartContract) BidOnEnergy(ctx contractapi.TransactionContextInterface, bidList []*Energy) (string, error) {
+	// bidId string, energyId string, bidder string, bidPrice float64, priority float64, amount float64, timestamp int64, lCat string, sCat string, unitPrice float64
+	// var bidReturn []*BidReturn
+	var rerr error
+	var message string
+	var eMessage string
+
+	for i := 0; i < len(bidList); i++ {
+		energy, err := s.ReadToken(ctx, bidList[i].EnergyID)
+		if err != nil {
+			eMessage += fmt.Sprintf("%v,", err.Error())
+			continue
+		}
+		if energy.LargeCategory != bidList[i].LargeCategory && energy.SmallCategory != bidList[i].SmallCategory {
+			eMessage += fmt.Sprintf("%v,", err.Error())
+			continue
+		}
+		exists, err := s.EnergyExists(ctx, bidList[i].ID)
+		if err != nil {
+			eMessage += fmt.Sprintf("%v,", err.Error())
+			continue
+		}
+		if exists {
+			eMessage += fmt.Sprintf("%v,", err.Error())
+			continue
+		}
+		bidList[i].Amount = 0
+		bidList[i].DocType = "bid"
+		bidList[i].Status = "bid"
+
+		bidJSON, err := json.Marshal(bidList[i])
+		if err != nil {
+			eMessage += fmt.Sprintf("%v,", err.Error())
+			continue
+		}
+
+		err = ctx.GetStub().PutState(bidList[i].ID, bidJSON)
+		if err != nil {
+			eMessage += fmt.Sprintf("%v,", err.Error())
+			continue
+		}
+		message += fmt.Sprintf("%v,", bidList[i].ID)
+
+	}
+	/*if len(bidReturn) != len(bidList) {
+		//return bidReturn, fmt.Errorf("incorrect length")
+		rerr = fmt.Errorf("incorrect length")
+		
+	}*/
+	if len(eMessage) != 0 {
+		rerr = fmt.Errorf(eMessage)
+	}
+
+	return message, rerr
 }
 
 func (s *SmartContract) ChangeToken(ctx contractapi.TransactionContextInterface, energy *Energy) (error) {
@@ -481,7 +542,6 @@ func (s *SmartContract) BidOk(ctx contractapi.TransactionContextInterface, energ
 			return false, nil
 		}
 	}
-
 
 	return true, nil
 

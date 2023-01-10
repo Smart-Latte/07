@@ -86,9 +86,10 @@ func readToken(contract *client.Contract, id string) (Energy, error) {
 		}
 		evaluateResult, err := contract.EvaluateTransaction("readToken", id)
 		if err != nil {
-			fmt.Printf("BID RESULT ERROR: %v\n", err.Error())
+			fmt.Printf("BID RESULT ERROR: %v, %v\n", id, err.Error())
 				// panic(fmt.Errorf("failed to evaluate transaction: %w", err))
 		} else {
+			fmt.Printf("BID SUCCESS: %v\n", id)
 			err = json.Unmarshal(evaluateResult, &energy)
 			if(err != nil) {
 				fmt.Printf("unmarshal error in queryInBidResult\n")
