@@ -7,6 +7,7 @@ import (
 	"path"
 	"time"
 	"sync"
+	"math"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
@@ -69,7 +70,7 @@ var StartHour int
 var SolarOutput [dayNum][hourNum]float64
 var WindOutput [dayNum][hourNum] float64
 
-func Operator(start int64, end int64, difference int64, mySpeed int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, hour int) {
+func Operator(start int64, end int64, difference int64, mySpeed int64, sOutput [dayNum][hourNum]float64, wSpeed [dayNum][hourNum]float64, hour int) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -103,7 +104,12 @@ func Operator(start int64, end int64, difference int64, mySpeed int64, sOutput [
 	Speed = mySpeed
 	StartHour = hour
 	SolarOutput = sOutput
-	WindOutput = wOutput
+
+	for i := 0; i < dayNum; i++ {
+		for j := 0; j < hourNum; j++ {
+			windOutput[i][j] = math.Pow(windSpeed[i][j], 3)
+		}
+	}
 
 	
 	var wg sync.WaitGroup

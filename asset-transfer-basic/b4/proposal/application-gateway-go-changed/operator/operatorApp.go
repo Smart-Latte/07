@@ -20,10 +20,10 @@ func Init(contract *client.Contract) {
 	fmt.Printf("*** Transaction committed successfully\n")
 }
 
-var priceList [dayNum][hourNum] float64
-
 func Operate(contract *client.Contract, output [dayNum][hourNum]float64, cat string) {
-	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
+	var priceList [dayNum][hourNum] float64
+
+	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Nanosecond)
 
 	maxPrice := 0.025
 	minPrice := 0.015
@@ -58,13 +58,17 @@ func Operate(contract *client.Contract, output [dayNum][hourNum]float64, cat str
 
 	day := 0
 	hour := StartHour
-	timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
-	_ = update (contract, cat, day, hour, timestamp)
+	timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+	_ = update(contract, priceList, cat, day, hour, timestamp)
 
-	startSecond := StartTime % 60
-	startMinute := (StartTime / 60) % 60
-	nextTime := StartTime - startMinute * 60 - startSecond + 60 * 60
-	nextTimer := time.NewTimer(time.Duration(nextTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) * time.Second / time.Duration(Speed))
+	startNano := StartTime % 1000
+	startMicro := (StartTime / 1000) % 1000
+	startMilli := (StartTime / 1000000) % 1000
+	startSecond := (StartTime / 1000000000) % 60
+	startMinute := (StartTime / (60 * 1000000000)) % 60
+	nextTime := StartTime - startMinute * 60 * 1000000000 - startSecond * 1000000000 - startMilli * 1000000 - startMicro * 1000 - startNano + 60 * 60 * 1000000000
+	fmt.Printf("minute:%v, second:%v, milli:%v, miroco:%v, nano:%v, now: %v, next update price:%v\n", startMinute, startSecond, startMilli, startMicro, startNano, time.Unix(0, StartTime), time.Unix(0, nextTime))
+	nextTimer := time.NewTimer(time.Duration(nextTime - ((time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime)) * time.Nanosecond / time.Duration(Speed))
 
 	if (hour > 22) {
 		day = 1
@@ -75,12 +79,12 @@ func Operate(contract *client.Contract, output [dayNum][hourNum]float64, cat str
 	
 	select {
 	case <- nextTimer.C:
-		timestamp = (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
-		fmt.Printf("UPDATE UNIT PRICE: %v\n", time.Unix(timestamp, 0))
-		_ =  update (contract, cat, day, hour, timestamp)
+		timestamp = (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+		fmt.Printf("UPDATE UNIT PRICE: %v\n", time.Unix(0, timestamp))
+		_ =  update (contract, priceList, cat, day, hour, timestamp)
 	case <- endTimer.C:
-		timestamp = (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
-		fmt.Printf("UPDATE UNIT PRICE END: %v\n", time.Unix(timestamp, 0))
+		timestamp = (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+		fmt.Printf("UPDATE UNIT PRICE END: %v\n", time.Unix(0, timestamp))
 		nextTimer.Stop()
 		return
 	}
@@ -97,9 +101,9 @@ func Operate(contract *client.Contract, output [dayNum][hourNum]float64, cat str
 	for {
 		select {
 		case <- ticker.C:
-			timestamp = (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
-			fmt.Printf("UPDATE UNIT PRICE: %v\n", time.Unix(timestamp, 0))
-			_ = update (contract, cat, day, hour, timestamp)
+			timestamp = (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+			fmt.Printf("UPDATE UNIT PRICE: %v\n", time.Unix(0, timestamp))
+			_ = update (contract, priceList, cat, day, hour, timestamp)
 			if (hour > 22) {
 				day = 1
 				hour = 0
@@ -107,14 +111,14 @@ func Operate(contract *client.Contract, output [dayNum][hourNum]float64, cat str
 				hour++
 			}
 		case <- endTimer.C:
-			timestamp = (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
-			fmt.Printf("UPDATE UNIT PRICE END: %v\n", time.Unix(timestamp, 0))
+			timestamp = (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+			fmt.Printf("UPDATE UNIT PRICE END: %v\n", time.Unix(0, timestamp))
 			nextTimer.Stop()
 			return
 		}
 	}
 }
-func update (contract *client.Contract, cat string, day int, hour int, timestamp int64) error {
+func update (contract *client.Contract, priceList [dayNum][hourNum]float64, cat string, day int, hour int, timestamp int64) error {
 	// fmt.Printf("Submit Transaction: changeUnitPrice\n")
 	sTimestamp := fmt.Sprintf("%d", timestamp)
 	sPrice := fmt.Sprintf("%v", priceList[day][hour])

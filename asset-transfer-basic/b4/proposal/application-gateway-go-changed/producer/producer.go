@@ -7,6 +7,7 @@ import (
 	"path"
 	"time"
 	"sync"
+	"math"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
@@ -75,11 +76,11 @@ var Interval int64
 var TokenLife int64
 var StartHour int
 var SolarOutput [dayNum][hourNum]float64
-var WindOutput [dayNum][hourNum] float64
-var SeaWindOutput [dayNum][hourNum] float64
+var WindSpeed [dayNum][hourNum] float64
+var SeaWindSpeed [dayNum][hourNum] float64
 
-func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, sOutput [dayNum][hourNum]float64, wOutput [dayNum][hourNum]float64, 
-	swOutput [dayNum][hourNum]float64, hour int) {
+func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, sOutput [dayNum][hourNum]float64, wSpeed [dayNum][hourNum]float64, 
+	swSpeed [dayNum][hourNum]float64, hour int) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -115,48 +116,94 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 	TokenLife = life
 	StartHour = hour
 	SolarOutput = sOutput
-	WindOutput = wOutput
-	SeaWindOutput = swOutput
+	WindSpeed = wSpeed
+	SeaWindSpeed = swSpeed
 
-	var thermalOutput[dayNum][hourNum]  float64 =[dayNum][hourNum]float64 {
-		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
-		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+	var solarOut float64 = 1000000
+	var realWindOut float64 = 1990000
+	var dummySolar float64 = 40000
+	var dummyWind float64 = 11000
+	var rating float64 = 12.5
+	var cutIn float64 = 2.5
+	var thermalOutput[dayNum][hourNum] float64
+	var seaWindOutput[dayNum][hourNum] float64
+
+	for i := 0; i < dayNum; i++ {
+		for j := 0; j < hourNum; j++ {
+			solar := solarOut * SolarOutput[i][j]
+			dSolar := dummySolar * SolarOutput[i][j] * 4
+			var seaWind float64
+			var dWind float64
+			if SeaWindSpeed[i][j] >= cutIn {
+				seaWindOutput[i][j] = realWindOut * math.Pow((SeaWindSpeed[i][j] / rating), 3)
+				seaWind = seaWindOutput[i][j] * 3
+			}
+			if WindSpeed[i][j] >= cutIn {
+				dWind = dummyWind * math.Pow((WindSpeed[i][j] / rating), 3) * 4
+			}
+			out := solar + dSolar + seaWind + dWind
+			var maxOut float64
+			if (i == 0 && j < 18) {
+				maxOut = 1610000
+				//thermalOutput[i][j] = 1
+			} else {
+				maxOut = 1050000
+				//thermalOutput[i][j] = 1
+			}
+			if (maxOut < out) {
+				con := maxOut - out
+				seaWindOutput[i][j] = (seaWind - con) / 3
+			}
+			thermalOutput[i][j] = maxOut - out
+			if 
+			if (thermalOutput[i][j] < 0) {
+				thermalOutput[i][j] = 0
+				//thermalOutput[i][j] = 1
+			}
+			
+			fmt.Printf("day:%v, hour:%v, solar:%v, dSolar:%v, wind:%v, dWind:%v, thermal:%v\n", i, j, solar, dSolar, seaWind, dWind, thermalOutput[i][j])
+		}
+	}
+
 
 	var wg sync.WaitGroup
 
 	wg.Add(5)
 	go func() {
 		defer wg.Done()
-		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", 1000000, SolarOutput, 0)
+		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", solarOut, SolarOutput, 0)
 	}()
 	go func() {
 		defer wg.Done()
-		SeaWindProducer(contract, "real-wind-producer0", 40.2160279724715, 140.002846271612, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 1)
+		// SeaWindProducer(contract, "real-wind-producer0", 40.2160279724715, 140.002846271612, "wind", realWindOut, rating, cutIn, SeaWindSpeed, 1)
+		Produce(contract, "real-wind-producer0", 40.2160279724715, 140.002846271612, "wind", 1, seaWindOutput, 1)
 	}()
 	go func() {
 		defer wg.Done()
-		SeaWindProducer(contract, "real-wind-producer1", 40.2095028757269, 139.997337258476, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 2)
+		//SeaWindProducer(contract, "real-wind-producer1", 40.2095028757269, 139.997337258476, "wind", realWindOut, rating, cutIn, SeaWindSpeed, 2)
+		Produce(contract, "real-wind-producer1", 40.2095028757269, 139.997337258476, "wind", 1, seaWindOutput, 2)
 	}()
 	go func() {
 		defer wg.Done()
-		SeaWindProducer(contract, "real-wind-producer2", 40.2021377588529, 140.068615482843, "wind", 1990000, 12.5, 2.5, SeaWindOutput, 3)
+		// SeaWindProducer(contract, "real-wind-producer2", 40.2021377588529, 140.068615482843, "wind", realWindOut, rating, cutIn, SeaWindSpeed, 3)
+		Produce(contract, "real-wind-producer2", 40.2021377588529, 140.068615482843, "wind", 1, seaWindOutput, 3)
 	}()
 	go func() {
 		defer wg.Done()
-		Produce(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 100000, thermalOutput, 4)
+		Produce(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 1, thermalOutput, 4)
 	}()
 
 	for i := 0; i < 4; i++ { // 4
 		wg.Add(2)
 		go func(n int) {
 			defer wg.Done()
-			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "solar", 40000, SolarOutput, int64(n + 10000))
+			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 139.992165531859, 140.068615482843, "solar", dummySolar, SolarOutput, int64(n + 10000))
 			// DummySolarProducer(contract, fmt.Sprintf("solarProducer%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "solar", 4000, SolarOutput, int64(n + 10000))
 
 		}(i)
 		go func(n int) {
 			defer wg.Done()
-			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "wind", 11000, 12.5, 2.5, WindOutput, int64(n + 1000))
+			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 139.992165531859, 140.068615482843, "wind", dummyWind, rating, cutIn, WindSpeed, int64(n + 1000))
 			// DummyWindProducer(contract, fmt.Sprintf("windProducer%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
 		}(i)
 	}

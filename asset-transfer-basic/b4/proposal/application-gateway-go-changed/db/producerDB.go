@@ -77,8 +77,8 @@ var EndTime int64
 
 func main() {
 	startHour := 6
-	StartTime = time.Date(2015, time.March, 27, startHour, 0, 0, 0, time.Local).Unix()
-	EndTime = time.Date(2015, time.March, 27, startHour + 24, 0, 0, 0, time.Local).Unix()
+	StartTime = time.Date(2015, time.March, 27, startHour, 0, 0, 0, time.Local).UnixNano()
+	EndTime = time.Date(2015, time.March, 27, startHour + 24, 0, 0, 0, time.Local).UnixNano()
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
 	defer clientConnection.Close()
@@ -221,7 +221,7 @@ func DbResister(bidTokens []Energy, energyTokens []Energy) {
 func getBidTokens(contract  *client.Contract) []Energy {
 	var fullTokenList []Energy
 	diff := EndTime - StartTime
-	var interval int64 = 60 * 60 // 1hour
+	var interval int64 = 60 * 60 * 1000000000 // 1hour
 	var i int64
 	for i = 0; int64(i) < diff / interval; i++ {
 		start := StartTime + i * interval
@@ -265,7 +265,7 @@ func getBidTokens(contract  *client.Contract) []Energy {
 func getEnergyTokens(contract  *client.Contract) []Energy {
 	var fullTokenList []Energy
 	diff := EndTime - StartTime
-	var interval int64 = 60 * 60 // 1hour
+	var interval int64 = 60 * 60 * 1000000000 // 1hour
 	var i int64
 
 	for i = 0; i < diff / interval; i++ {
@@ -324,7 +324,7 @@ func queryBid(contract *client.Contract, startTime int64, endTime int64) ([]Ener
 			if err != nil {
 				log.Printf("unmarshal error: %v", err.Error())
 			} else {
-				if (len(tokens) > 9999) {
+				if (len(tokens) > 99999) {
 					return tokens, false
 				}
 				break queryLoop
@@ -351,7 +351,7 @@ func queryByTime(contract *client.Contract, startTime int64, endTime int64) ([]E
 			if err != nil {
 				log.Printf("unmarshal error: %v", err.Error())
 			} else {
-				if (len(tokens) > 9999) {
+				if (len(tokens) > 99999) {
 					return tokens, false
 				}
 				break queryLoop

@@ -32,7 +32,7 @@ func BidResult(contract *client.Contract, bidEnergies []Energy, data Data) (Data
 			defer wg.Done()
 			checkLoop:
 			for {
-				if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+				if ((time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime > EndTime) {
 					return
 				}
 				bidToken, err := readToken(contract, bidEnergies[n].ID)
@@ -49,7 +49,7 @@ func BidResult(contract *client.Contract, bidEnergies []Energy, data Data) (Data
 	}
 	wg.Wait()
 
-	if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+	if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 		return data, fmt.Errorf("time up")
 	}
 	data.GetAmount = 0
@@ -81,15 +81,15 @@ func readToken(contract *client.Contract, id string) (Energy, error) {
 
 	queryLoop:
 	for {
-		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+		if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return energy, fmt.Errorf("time up")
 		}
 		evaluateResult, err := contract.EvaluateTransaction("readToken", id)
 		if err != nil {
-			fmt.Printf("BID RESULT ERROR: %v, %v\n", id, err.Error())
-				// panic(fmt.Errorf("failed to evaluate transaction: %w", err))
+			//fmt.Printf("BID RESULT ERROR: %v, %v\n", id, err.Error())
+				panic(fmt.Errorf("bid result error %v, failed to evaluate transaction: %v\n", id, err))
 		} else {
-			fmt.Printf("BID SUCCESS: %v\n", id)
+			// fmt.Printf("BID SUCCESS: %v\n", id)
 			err = json.Unmarshal(evaluateResult, &energy)
 			if(err != nil) {
 				fmt.Printf("unmarshal error in queryInBidResult\n")

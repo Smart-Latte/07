@@ -6,21 +6,22 @@ import (
 	"log"
 	"encoding/json"
 	"sort"
+	"math/rand"
 	//"sync"
 	
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 )
 
 func Auction(contract *client.Contract, energy Energy) {
-	timer := time.NewTimer(time.Duration(Interval * 60 - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime - energy.GeneratedTime)) * time.Second / time.Duration(Speed))
-	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
+	timer := time.NewTimer(time.Duration(Interval * 60 * 1000000000 - ((time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime - energy.GeneratedTime)) * time.Nanosecond / time.Duration(Speed))
+	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Nanosecond)
 
 	auctionEndCount := 0
 	select {
 	case <- timer.C:
-		ticker := time.NewTicker(time.Duration(Interval * 60) * time.Second / time.Duration(Speed))
+		ticker := time.NewTicker(time.Duration(Interval * 60 * 1000000000) * time.Nanosecond / time.Duration(Speed))
 
-		timestamp := (time.Now().Unix() -Diff - StartTime) * Speed + StartTime
+		timestamp := (time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime
 
 		// fmt.Printf("auctionEndCall: id: %s, count: %d\n", energy.ID, auctionEndCount)
 		isSold, err := auctionEnd(contract, energy, timestamp)
@@ -38,7 +39,7 @@ func Auction(contract *client.Contract, energy Energy) {
 			auctionEndCount++
 			select {
 			case <- ticker.C:
-				timestamp := (time.Now().Unix() -Diff - StartTime) * Speed + StartTime
+				timestamp := (time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime
 				// log.Printf("auctionEndCall: id: %s, count: %d, timestamp: %d\n", energy.ID, auctionEndCount, timestamp)
 				
 				isSold, err := auctionEnd(contract, energy, timestamp)
@@ -81,7 +82,7 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp int64) (bool
 			return false, err
 		}
 	}
-	if (timestamp <= energy.GeneratedTime + TokenLife * 60 && len(bidList) == 0) {
+	if (timestamp <= energy.GeneratedTime + TokenLife * 60 * 1000000000 && len(bidList) == 0) {
 		// log.Printf("%s auction end : no bidList, %v, now:%v\n", energy.ID, timestamp, ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime))
 		return isSold, nil
 	}
@@ -117,6 +118,9 @@ func auctionEnd(contract *client.Contract, energy Energy, timestamp int64) (bool
 	}
 // 	log.Printf("producer auction end: %s, %s, %s %vWh\n", energy.Producer, energy.ID, message, energyInput.Amount)
 	if (message == "the energy was generated more than 30min ago. This was not sold." || message == "auction end") {
+		if(message == "the energy was generated more than 30min ago. This was not sold.") {
+			fmt.Printf("ID:%v, %v\n", energy.ID, message)
+		}
 		isSold = true
 	}
 
@@ -129,7 +133,7 @@ func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64
 	loopCount := 0
 	queryLoop:
 	for {
-		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+		if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return bidList, fmt.Errorf("time up")
 		}
 		evaluateResult, err := contract.EvaluateTransaction("AuctionEndQuery", energyId, sTimestamp)
@@ -137,7 +141,12 @@ func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64
 			// log.Printf("auction end query error: %v\n", err.Error())
 			loopCount++
 			if loopCount > 5 {
-				return bidList, err
+				log.Printf("auction end query error: %v, %v\n", energyId, err)
+				timestamp := time.Now().UnixNano()
+				rand.Seed(timestamp)
+				timer := time.NewTimer(time.Duration(rand.Intn(3)) * time.Second + time.Duration(rand.Intn(1000)) * time.Millisecond)
+				<- timer.C
+				// return bidList, err
 			}
 		} else {
 			if (len(evaluateResult) == 0) {
@@ -179,14 +188,19 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 	loopCount := 0
 	loop:
 	for {
-		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+		if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return "", fmt.Errorf("time up")
 		}
 		submitResult, err := contract.SubmitTransaction("AuctionEnd", string(energyJSON), string(bidJSON))
 		if err != nil {
 			loopCount++
 			if (loopCount > 5) {
-				return "", err
+				fmt.Printf("producer auction end error:%v\n", err)
+				timestamp := time.Now().UnixNano()
+				rand.Seed(timestamp)
+				timer := time.NewTimer(time.Duration(rand.Intn(3)) * time.Second + time.Duration(rand.Intn(1000)) * time.Millisecond)
+				<- timer.C
+				//return "", err
 			}
 			// log.Printf("producer auction end error: %v\n", err.Error())
 			if (err.Error() == "energy amount is wrong" || err.Error() == "the energy is alive" || err.Error() == "energy ID is wrong" || err.Error() == "bid amount is wrong") {

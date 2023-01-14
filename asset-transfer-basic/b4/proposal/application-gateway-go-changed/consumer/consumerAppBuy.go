@@ -40,7 +40,7 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 	var success []Energy
 	var err error
 
-	if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+	if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 		return success, data, fmt.Errorf("time up")
 	}
 	// var errEnergies []Energy
@@ -61,7 +61,7 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 	// auctionStartTimeCompare := timestamp - 60 * Interval
 
 	validEnergies := []Energy{}
-	generatedTimeCompare := (time.Now().Unix() -Diff - StartTime) * Speed + StartTime - TokenLife * 60
+	generatedTimeCompare := (time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime - (TokenLife - 1) * 60 * 1000000000
 
 	for _, energy := range energies {
 		distance := distance(data.Latitude, data.Longitude, energy.Latitude, energy.Longitude)
@@ -107,7 +107,7 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 	
 	loop:
 		for {
-			if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+			if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 				return success, data, fmt.Errorf("time up")
 			}
 			if(leftAmount == 0 || len(validEnergies) == 0) {
@@ -164,7 +164,7 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 	data.BidThermal = 0
 	// data.LatestAuctionStartTime = 0
 	data.LastBidTime = 0
-	data.FirstBidTime = time.Now().Unix()
+	data.FirstBidTime = time.Now().UnixNano()
 
 	for i := 0; i < len(success); i++ {
 		data.BidAmount += success[i].Amount
@@ -249,7 +249,7 @@ func bid(contract *client.Contract, energies []Energy, tokenCount int, data Data
 	var successAmount float64
 
 	for i := 0; i < tokenCount; i++ {
-		timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+		timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
 		rand.Seed(time.Now().UnixNano())
 		energies[i].EnergyID = energies[i].ID
 		energies[i].ID = fmt.Sprintf("%v%s%s-%d", timestamp, energies[i].EnergyID, data.UserName, rand.Intn(10000))
@@ -257,7 +257,8 @@ func bid(contract *client.Contract, energies []Energy, tokenCount int, data Data
 		energies[i].BidAmount = energies[i].Amount
 		energies[i].BidTime = timestamp
 	}
-	idList, err := bidOnEnergy(contract, energies)
+	input := energies[:tokenCount]
+	idList, err := bidOnEnergy(contract, input)
 	if err != nil {
 		return successEnergy, 0
 	}
@@ -289,6 +290,7 @@ func bidOnEnergy(contract *client.Contract, energies []Energy) ([]string, error)
 		if len(evaluateResult) > 0 {
 			message := string(evaluateResult)
 			messageList = strings.Split(message, ",")
+			messageList = messageList[:len(messageList) - 1]
 			if err != nil {
 				fmt.Println(err.Error())
 			} 
@@ -313,7 +315,7 @@ func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64
 	// endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 
 	var message string
-	timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+	timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
 	sTimestamp := fmt.Sprintf("%v", timestamp)
 	sBidPrice := fmt.Sprintf("%v", bidPrice)
 	sUnitPrice := fmt.Sprintf("%v", unitPrice)
@@ -328,7 +330,7 @@ func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64
 	count := 0
 	bidLoop:
 	for {
-		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+		if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return "", timestamp, bidId, fmt.Errorf("time up")
 		}
 		/*select {
@@ -342,7 +344,8 @@ func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64
 		if isOk {
 			submitResult, err := contract.SubmitTransaction("BidOnEnergy", bidId, energyId, username, sBidPrice, sPriority, sAmount, sTimestamp, lCat, sCat, sUnitPrice)
 			if err != nil {
-				// log.Printf("%s, bid error: %s, %v\n", username, energyId, err)
+				//log.Printf("%s, bid error: %s, %v\n", username, energyId, err)
+				panic(fmt.Errorf("failed to submit transaction: %s, bid error: %v, %v", username, energyId, err))
 				// rand.Seed(time.Now().UnixNano())
 				// timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
 				count++
@@ -368,12 +371,13 @@ func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64
 		isOk := true
 
 		for {
-			if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+			if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 				return false, fmt.Errorf("time up")
 			}
 			evaluateResult, err := contract.EvaluateTransaction("BidOk", energyId, sBidPrice, sPriority)
 			if err != nil {
-				log.Printf("bid ok error: %v\n", err.Error())
+				///log.Printf("bid ok error:%v\n", err.Error())
+				panic(fmt.Errorf("bid ok error failed to evaluate transaction: %v", err))
 			} else {
 				result := string(evaluateResult)
 				isOk, err = strconv.ParseBool(result)
@@ -432,15 +436,15 @@ func queryByLocationRange(contract *client.Contract, consumer string, lowerLat f
 
 	result := []Energy{}
 	for {
-		if ((time.Now().Unix() -Diff - StartTime) * Speed + StartTime > EndTime) {
+		if ((time.Now().UnixNano() -Diff - StartTime) * Speed + StartTime > EndTime) {
 			return result, fmt.Errorf("time up")
 		}
 		evaluateResult, err := contract.EvaluateTransaction("QueryByLocationRange", "generated", consumer, strLowerLat, strUpperLat, strLowerLng, strUpperLng)
 		if err != nil {
-			log.Printf("queryByLocationRange error: %s, %v\n", consumer, err.Error())
-			// panic(fmt.Errorf("failed to evaluate transaction: %w", err))
+			// log.Printf("queryByLocationRange error: %s, %v\n", consumer, err.Error())
+			panic(fmt.Errorf("queryByLocationRange error: %s, failed to evaluate transaction: %v", consumer, err))
 		} else {
-			log.Printf("query success: %s\n", consumer)
+			// log.Printf("query success: %s\n", consumer)
 			err = json.Unmarshal(evaluateResult, &result)
 			if (err != nil && len(evaluateResult) > 0) {
 				log.Printf("unmarshal error: %v\n", err.Error())

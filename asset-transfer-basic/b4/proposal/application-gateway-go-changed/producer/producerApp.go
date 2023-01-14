@@ -54,7 +54,7 @@ func DummySolarProducer(contract *client.Contract, username string, lLat float64
 
 func Produce(contract *client.Contract, username string, lat float64, lon float64, category string, output float64, outputList [dayNum][hourNum]float64, seed int64) {
 
-	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
+	endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Nanosecond)
 
 	// output per min during un hour
 	var myOutput[dayNum][hourNum] float64
@@ -89,10 +89,10 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 	
 
 	rand.Seed(seed)
-	wait := rand.Intn(60)
+	wait := rand.Intn(60) * 1000000000
 	waitNano := rand.Intn(1000000000)
 	fmt.Printf("%s wait : %d, waitNano:%d\n", username, wait + 5, waitNano)
-	timer := time.NewTimer((time.Duration(waitNano) * time.Nanosecond + time.Duration(5 + int64(wait) + time.Now().Unix() - Diff - StartTime) * time.Second) / time.Duration(Speed))
+	timer := time.NewTimer((time.Duration(waitNano) * time.Nanosecond + time.Duration(5000000000 + int64(wait) + time.Now().UnixNano() - Diff - StartTime) * time.Nanosecond) / time.Duration(Speed))
 
 	<- timer.C
 	loop:
@@ -115,14 +115,15 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 			for {
 				if (float64(thisTimeCounter) >= 60 * 60 / thisTiming) {
 					ticker.Stop()
-					// fmt.Printf("producer counter:%d, this time counter:%d\n", counter, thisTimeCounter)
+					fmt.Printf("producer %v counter:%d, this time counter:%d, %v\n", username, counter, thisTimeCounter, time.Unix(0, (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime))
+					counter++
 					break
 				}
 				// ログ
 				select {
 				case <-ticker.C:
 					if (thisOut > 0) {
-						timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
+						timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
 						var input Input = Input{User: username, Latitude: lat, Longitude: lon, Amount: thisOut, Category: category, Timestamp: timestamp}
 						wg.Add(1)
 						go func(i Input) {
@@ -134,8 +135,8 @@ func Produce(contract *client.Contract, username string, lat float64, lon float6
 					thisTimeCounter++
 				case <- endTimer.C:
 					ticker.Stop()
-					timestamp := (time.Now().Unix() - Diff - StartTime) * Speed + StartTime
-					fmt.Printf("PRODUCER END TIMER: %v\n", time.Unix(timestamp, 0))
+					timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+					fmt.Printf("PRODUCER END TIMER: %v\n", time.Unix(0, timestamp))
 					break loop
 				}
 				// Create

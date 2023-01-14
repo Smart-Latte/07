@@ -66,7 +66,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 			LargeCategory: "green", SmallCategory: "solar"},
 		{DocType: "cost", ID: "wind-power-cost", UnitPrice: 0.02,
 			LargeCategory: "green", SmallCategory: "wind"},
-		{DocType: "cost", ID: "thermal-power-cost", UnitPrice: 0.03,
+		{DocType: "cost", ID: "thermal-power-cost", UnitPrice: 0.1,
 			LargeCategory: "depletable", SmallCategory: "thermal"},
 		
 	}
@@ -276,7 +276,7 @@ func (s *SmartContract) AuctionEnd(ctx contractapi.TransactionContextInterface, 
 	if err != nil {
 		return "", err
 	}
-	generatedTimeCompare := energyInput.Time - 60 * tokenLife
+	generatedTimeCompare := energyInput.Time - 60 * tokenLife * 1000000000
 	if (generatedTimeCompare > energy.GeneratedTime) {
 		energy.Status = "old"
 		message = "the energy was generated more than 30min ago. This was not sold."
@@ -422,7 +422,7 @@ func (s *SmartContract) AuctionEndQuery(ctx contractapi.TransactionContextInterf
 	if exist == false {
 		return energies, fmt.Errorf("no energy Token")
 	}
-	startTime := timestamp - auctionInterval * 75
+	startTime := timestamp - auctionInterval * 75 * 1000000000
 	endTime := timestamp - 1
 	qEnergies, err := s.QueryAuctionEnd(ctx, id, startTime, endTime)
 	if (err != nil) {
