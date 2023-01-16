@@ -151,17 +151,16 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 				//thermalOutput[i][j] = 1
 			}
 			if (maxOut < out) {
-				con := maxOut - out
+				con := out - maxOut
 				seaWindOutput[i][j] = (seaWind - con) / 3
 			}
 			thermalOutput[i][j] = maxOut - out
-			if 
 			if (thermalOutput[i][j] < 0) {
 				thermalOutput[i][j] = 0
 				//thermalOutput[i][j] = 1
 			}
 			
-			fmt.Printf("day:%v, hour:%v, solar:%v, dSolar:%v, wind:%v, dWind:%v, thermal:%v\n", i, j, solar, dSolar, seaWind, dWind, thermalOutput[i][j])
+			fmt.Printf("day:%v, hour:%v, solar:%v, dSolar:%v, wind:%v, dWind:%v, thermal:%v\n", i, j, solar, dSolar, seaWindOutput[i][j] * 3, dWind, thermalOutput[i][j])
 		}
 	}
 

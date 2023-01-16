@@ -67,7 +67,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 	Interval = auctionInterval
 	TokenLife = life
 
-	userNum = 210 //105 420
+	userNum = 315 //105 420
 	peerMax = 1
 
 	userData := [][][]Data{}
@@ -138,7 +138,7 @@ func peerConsumer(peer string, port string, peerNo int) [][]Data {
 	// 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1), seed
 	var wg sync.WaitGroup
 
-	for i := 0; i < userNum; i++ {
+	/*for i := 0; i < userNum; i++ {
 		wg.Add(1)
 		userData = append(userData, []Data{})
 		go func(n int) {
@@ -156,6 +156,16 @@ func peerConsumer(peer string, port string, peerNo int) [][]Data {
 			userData[n + userNum] = Night(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
 				140.068615482843, 40000, 8, int64(userNum * (peerMax + peerNo) + n))
 		}(i)
+	}*/
+
+	for i := 0; i < userNum; i++ {
+		wg.Add(1)
+		userData = append(userData, []Data{})
+		go func(n int) {
+			defer wg.Done()
+			userData[n] = General(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
+				140.068615482843, 40000, 8, int64(userNum * peerNo + n))
+		}
 	}
 
 	for i := 0; i < userNum; i++ {
@@ -163,8 +173,10 @@ func peerConsumer(peer string, port string, peerNo int) [][]Data {
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			userData[n + 2 * userNum] = Fast(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
-				140.068615482843, 40000, 0.66, int64(userNum * (2 * peerMax + peerNo) + n))
+			/*userData[n + 2 * userNum] = Fast(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
+				140.068615482843, 40000, 0.66, int64(userNum * (2 * peerMax + peerNo) + n))*/
+			userData[n + userNum] = Fast(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
+				140.068615482843, 40000, 0.66, int64(userNum * (peerMax + peerNo) + n))
 		}(i)
 	}
 

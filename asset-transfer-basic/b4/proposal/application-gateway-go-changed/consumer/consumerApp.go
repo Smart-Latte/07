@@ -78,6 +78,13 @@ func Fast(contract *client.Contract, peer string, lLat float64, uLat float64, lL
 	return DataList
 }
 
+func General(contract *client.Contract, peer string, lLat float64, uLat float64, lLon float64, uLon float64, battery float64, chargeTime float64, seed int64) []Data {
+	username := fmt.Sprintf("generalUser%v", seed)
+	rand.Seed(seed)
+	add := rand.Intn(24)
+	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 1, seed)
+}
+
 
 // 充電開始時間(差分)、バッテリー容量(Wh)、チャージ済み(Wh)、充電時間(hour)、最終的なバッテリー残量(0から1)
 func Consume(contract *client.Contract, username string, lLat float64, uLat float64, lLon float64, uLon float64, add time.Duration, battery float64, chargeTime float64, finalLife float64, seed int64) []Data {

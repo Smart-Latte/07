@@ -25,7 +25,7 @@ type Output struct {
 const (
 	earthRadius = 6378137.0
 	pricePerMater = 0.000001
-	kmPerBattery = 0.0375 // (100-battery(%)) * kmPerBattery = x km
+	kmPerBattery = 0.065 // (100-battery(%)) * kmPerBattery = x km
 	layout = "2006-01-02T15:04:05+09:00"
 )
 
@@ -34,6 +34,7 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 
 	search := 100 - data.BatteryLife
 	searchRange := search * kmPerBattery * 1000 // 1000m->500mに変更
+	// searchRange = 100000
 	// fmt.Printf("searchRange:%g\n", searchRange)
 
 	var energies []Energy
@@ -376,8 +377,9 @@ func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64
 			}
 			evaluateResult, err := contract.EvaluateTransaction("BidOk", energyId, sBidPrice, sPriority)
 			if err != nil {
-				///log.Printf("bid ok error:%v\n", err.Error())
-				panic(fmt.Errorf("bid ok error failed to evaluate transaction: %v", err))
+				log.Printf("bid ok error:%v\n", err.Error())
+				return true, nil
+				//panic(fmt.Errorf("bid ok error failed to evaluate transaction: %v", err))
 			} else {
 				result := string(evaluateResult)
 				isOk, err = strconv.ParseBool(result)
@@ -441,8 +443,8 @@ func queryByLocationRange(contract *client.Contract, consumer string, lowerLat f
 		}
 		evaluateResult, err := contract.EvaluateTransaction("QueryByLocationRange", "generated", consumer, strLowerLat, strUpperLat, strLowerLng, strUpperLng)
 		if err != nil {
-			// log.Printf("queryByLocationRange error: %s, %v\n", consumer, err.Error())
-			panic(fmt.Errorf("queryByLocationRange error: %s, failed to evaluate transaction: %v", consumer, err))
+			log.Printf("queryByLocationRange error: %s, %v\n", consumer, err.Error())
+			//panic(fmt.Errorf("queryByLocationRange error: %s, failed to evaluate transaction: %v", consumer, err))
 		} else {
 			// log.Printf("query success: %s\n", consumer)
 			err = json.Unmarshal(evaluateResult, &result)

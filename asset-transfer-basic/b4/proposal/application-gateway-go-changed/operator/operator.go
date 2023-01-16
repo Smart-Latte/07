@@ -107,7 +107,7 @@ func Operator(start int64, end int64, difference int64, mySpeed int64, sOutput [
 
 	for i := 0; i < dayNum; i++ {
 		for j := 0; j < hourNum; j++ {
-			windOutput[i][j] = math.Pow(windSpeed[i][j], 3)
+			WindOutput[i][j] = math.Pow(wSpeed[i][j], 3)
 		}
 	}
 
