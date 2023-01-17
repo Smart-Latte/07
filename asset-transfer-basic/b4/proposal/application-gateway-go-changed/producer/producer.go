@@ -189,7 +189,7 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 	}()
 	go func() {
 		defer wg.Done()
-		Produce(contract, "real-thermal-producer0", 40.2021377588529, 140.068615482843, "thermal", 1, thermalOutput, 4)
+		Produce(contract, "real-thermal-producer0", 40.1932732666231, 139.992165531859, "thermal", 1, thermalOutput, 4)
 	}()
 
 	for i := 0; i < 4; i++ { // 4

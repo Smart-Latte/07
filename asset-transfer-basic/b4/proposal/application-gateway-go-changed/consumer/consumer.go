@@ -67,7 +67,7 @@ func AllConsumers(start int64, end int64, diff int64, auctionSpeed int64, auctio
 	Interval = auctionInterval
 	TokenLife = life
 
-	userNum = 315 //105 420
+	userNum = 210 //105 420
 	peerMax = 1
 
 	userData := [][][]Data{}
@@ -158,14 +158,14 @@ func peerConsumer(peer string, port string, peerNo int) [][]Data {
 		}(i)
 	}*/
 
-	for i := 0; i < userNum; i++ {
+	for i := 0; i < userNum * 2; i++ {
 		wg.Add(1)
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
 			userData[n] = General(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
 				140.068615482843, 40000, 8, int64(userNum * peerNo + n))
-		}
+		}(i)
 	}
 
 	for i := 0; i < userNum; i++ {
@@ -173,10 +173,9 @@ func peerConsumer(peer string, port string, peerNo int) [][]Data {
 		userData = append(userData, []Data{})
 		go func(n int) {
 			defer wg.Done()
-			/*userData[n + 2 * userNum] = Fast(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
-				140.068615482843, 40000, 0.66, int64(userNum * (2 * peerMax + peerNo) + n))*/
-			userData[n + userNum] = Fast(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
-				140.068615482843, 40000, 0.66, int64(userNum * (peerMax + peerNo) + n))
+			userData[n + 2 * userNum] = Fast(contract, peer, 40.17463042136363, 40.2330209148308, 139.992165531859, 
+				140.068615482843, 40000, 0.66, int64(userNum * (2 * peerMax + peerNo) + n))
+
 		}(i)
 	}
 

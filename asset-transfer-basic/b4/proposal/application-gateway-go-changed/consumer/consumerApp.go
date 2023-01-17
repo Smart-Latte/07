@@ -83,6 +83,8 @@ func General(contract *client.Contract, peer string, lLat float64, uLat float64,
 	rand.Seed(seed)
 	add := rand.Intn(24)
 	DataList := Consume(contract, username, lLat, uLat, lLon, uLon, time.Duration(add), battery, chargeTime, 1, seed)
+
+	return DataList
 }
 
 
