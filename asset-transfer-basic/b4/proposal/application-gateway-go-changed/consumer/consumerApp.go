@@ -171,20 +171,32 @@ func Consume(contract *client.Contract, username string, lLat float64, uLat floa
 		// 	fmt.Println("next is result")
 			if (consumeData[i].BidAmount == 0) {
 				zeroCount++
-				/*if (zeroCount > 30) {
-					fmt.Println("NO BID")
-					endTimer.Stop()
-					break loop
-				}*/
-				nothingTimer := time.NewTimer(60 * 1000000000 * time.Nanosecond / time.Duration(Speed))
-				select {
-				case <- endTimer.C:
-					timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
-					fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(0, timestamp))
-					break loop
-				case <- nothingTimer.C:
-					continue loop
+				if (zeroCount > 10) {
+					fmt.Println("%s long NO BID", username)
+					longZeroTimer := time.NewTimer(30 * 60 * 1000000000 * time.Nanosecond / time.Duration(Speed))
+					select {
+						case <- endTimer.C:
+							timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+							fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(0, timestamp))
+							break loop
+						case <- longZeroTimer.C:
+							zeroCount = 0
+							continue loop
+					}
+				} else {
+					fmt.Printf("%s, nothing, zeroCount:%v\n", username, zeroCount)
+					nothingTimer := time.NewTimer(60 * 1000000000 * time.Nanosecond / time.Duration(Speed))
+					select {
+					case <- endTimer.C:
+						timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
+						fmt.Printf("CONSUMER END TIMER: %v\n", time.Unix(0, timestamp))
+						break loop
+					case <- nothingTimer.C:
+						continue loop
+					}
 				}
+			} else {
+				zeroCount = 0
 			}
 
 			checkTime := (consumeData[i].LastBidTime + (Interval * 60 + 30) * 1000000000)

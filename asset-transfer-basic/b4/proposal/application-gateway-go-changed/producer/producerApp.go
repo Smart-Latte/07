@@ -13,10 +13,10 @@ import (
 func DummyWindProducer(contract *client.Contract, username string, lLat float64, uLat float64, lLon float64, uLon float64, category string, ratingOutput float64, ratingSpeed float64, 
 	cutIn float64, outputList [dayNum][hourNum]float64, seed int64){
 
-		rand.Seed(seed)
-		lat := rand.Float64() * (uLat - lLat) + lLat
-		lon := rand.Float64() * (uLon - lLon) + lLon
-		fmt.Printf("lat: %g, lon: %g\n", lat, lon)
+		r := rand.New(rand.NewSource(seed))
+		lat := r.Float64() * (uLat - lLat) + lLat
+		lon := r.Float64() * (uLon - lLon) + lLon
+		fmt.Printf("%s, %g, %g\n", username, lat, lon)
 
 		SeaWindProducer(contract, username, lat, lon, category, ratingOutput, ratingSpeed, cutIn, outputList, seed)
 
@@ -43,12 +43,13 @@ func SeaWindProducer(contract *client.Contract, username string, lat float64, lo
 
 func DummySolarProducer(contract *client.Contract, username string, lLat float64, uLat float64, lLon float64, uLon float64, category string, 
 	output float64, outputList [dayNum][hourNum]float64, seed int64) {
-	rand.Seed(seed)
-	lat := rand.Float64() * (uLat - lLat) + lLat
-	lon := rand.Float64() * (uLon - lLon) + lLon
-	fmt.Printf("lat: %g, lon: %g\n", lat, lon)
 
-	Produce(contract, username, lat, lon, category, output, outputList, seed)
+		r := rand.New(rand.NewSource(seed))
+		lat := r.Float64() * (uLat - lLat) + lLat
+		lon := r.Float64() * (uLon - lLon) + lLon
+		fmt.Printf("%s, %v, %g, %g\n", username, seed, lat, lon)
+
+		Produce(contract, username, lat, lon, category, output, outputList, seed)
 	
 }
 

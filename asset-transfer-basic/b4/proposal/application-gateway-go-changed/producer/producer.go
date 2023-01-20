@@ -192,20 +192,64 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 		Produce(contract, "real-thermal-producer0", 40.1932732666231, 139.992165531859, "thermal", 1, thermalOutput, 4)
 	}()
 
-	for i := 0; i < 4; i++ { // 4
+	/*for i := 0; i < 4; i++ { // 4
 		wg.Add(2)
 		go func(n int) {
 			defer wg.Done()
-			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 139.992165531859, 140.068615482843, "solar", dummySolar, SolarOutput, int64(n + 10000))
+			DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 140.010266575019, 140.068615482843, "solar", dummySolar, SolarOutput, int64(n + 10000))
+			//DummySolarProducer(contract, fmt.Sprintf("solarProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 139.992165531859, 140.068615482843, "solar", dummySolar, SolarOutput, int64(n + 10000))
 			// DummySolarProducer(contract, fmt.Sprintf("solarProducer%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "solar", 4000, SolarOutput, int64(n + 10000))
 
 		}(i)
 		go func(n int) {
 			defer wg.Done()
-			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 139.992165531859, 140.068615482843, "wind", dummyWind, rating, cutIn, WindSpeed, int64(n + 1000))
+			DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 140.010266575019, 140.068615482843, "wind", dummyWind, rating, cutIn, WindSpeed, int64(n + 1000))
+			// DummyWindProducer(contract, fmt.Sprintf("windProducerGroup%d", n), 40.17463042136363, 40.2330209148308, 139.992165531859, 140.068615482843, "wind", dummyWind, rating, cutIn, WindSpeed, int64(n + 1000))
 			// DummyWindProducer(contract, fmt.Sprintf("windProducer%d", n), 40.1932732666231, 40.2297629645958, 139.992165531859, 140.068615482843, "wind", 1100, 12.5, 2.5, WindOutput, int64(n + 1000))
 		}(i)
-	}
+	}*/
+	wg.Add(8)
+		go func() {
+			defer wg.Done()
+			DummySolarProducer(contract, "solarProducerGroup0", 40.17463042136363, 40.203825668097228, 140.010266575019, 140.039441028931, 
+			"solar", dummySolar, SolarOutput, int64(10000))
+		}()
+		go func() {
+			defer wg.Done()
+			DummySolarProducer(contract, "solarProducerGroup1", 40.17463042136363, 40.203825668097228, 140.039441028931, 140.068615482843, 
+			"solar", dummySolar, SolarOutput, int64(10001))
+		}()
+		go func() {
+			defer wg.Done()
+			DummySolarProducer(contract, "solarProducerGroup2", 40.20382566809722, 40.2330209148308, 140.010266575019, 140.039441028931, 
+			"solar", dummySolar, SolarOutput, int64(10002))
+		}()
+		go func() {
+			defer wg.Done()
+			DummySolarProducer(contract, "solarProducerGroup3", 40.20382566809722, 40.2330209148308, 140.039441028931, 140.068615482843, 
+			"solar", dummySolar, SolarOutput, int64(10003))
+		}()
+		go func() {
+			defer wg.Done()
+			DummyWindProducer(contract, "windProducerGroup0", 40.17463042136363, 40.203825668097228, 140.010266575019, 140.039441028931,
+			"wind", dummyWind, rating, cutIn, WindSpeed, int64(1000))
+		}()
+		go func() {
+			defer wg.Done()
+			DummyWindProducer(contract, "windProducerGroup1", 40.17463042136363, 40.203825668097228, 140.039441028931, 140.068615482843, 
+			"wind", dummyWind, rating, cutIn, WindSpeed, int64(1001))
+		}()
+		go func() {
+			defer wg.Done()
+			DummyWindProducer(contract, "windProducerGroup2", 40.20382566809722, 40.2330209148308, 140.010266575019, 140.039441028931, 
+			"wind", dummyWind, rating, cutIn, WindSpeed, int64(1002))
+		}()
+		go func() {
+			defer wg.Done()
+			DummyWindProducer(contract, "windProducerGroup3", 40.20382566809722, 40.233020914838, 140.039441028931, 140.068615482843, 
+			"wind", dummyWind, rating, cutIn, WindSpeed, int64(1003))
+		}()
+
 	wg.Wait()
 
 	fmt.Printf("all producer end\n")

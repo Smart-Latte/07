@@ -24,7 +24,7 @@ type Output struct {
 
 const (
 	earthRadius = 6378137.0
-	pricePerMater = 0.000001
+	pricePerMater = 0.000001 //0.000001
 	kmPerBattery = 0.065 // (100-battery(%)) * kmPerBattery = x km
 	layout = "2006-01-02T15:04:05+09:00"
 )
@@ -32,10 +32,13 @@ const (
 func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 	// endTimer := time.NewTimer(time.Duration((EndTime - ((time.Now().Unix() - Diff - StartTime) * Speed + StartTime)) / Speed) * time.Second)
 
-	search := 100 - data.BatteryLife
+	search := 100 - data.BatteryLife * 100
 	searchRange := search * kmPerBattery * 1000 // 1000m->500mに変更
-	// searchRange = 100000
-	// fmt.Printf("searchRange:%g\n", searchRange)
+	if (searchRange < 1300) {
+		searchRange = 1300
+	}
+	//searchRange := 200000
+	fmt.Printf("searchRange:%g\n", searchRange)
 
 	var energies []Energy
 	var success []Energy
@@ -251,12 +254,13 @@ func bid(contract *client.Contract, energies []Energy, tokenCount int, data Data
 
 	for i := 0; i < tokenCount; i++ {
 		timestamp := (time.Now().UnixNano() - Diff - StartTime) * Speed + StartTime
-		rand.Seed(time.Now().UnixNano())
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		energies[i].EnergyID = energies[i].ID
-		energies[i].ID = fmt.Sprintf("%v%s%s-%d", timestamp, energies[i].EnergyID, data.UserName, rand.Intn(10000))
+		energies[i].ID = fmt.Sprintf("%v%s%s-%d", timestamp, energies[i].EnergyID, data.UserName, r.Intn(10000))
 		energies[i].Owner = data.UserName
 		energies[i].BidAmount = energies[i].Amount
 		energies[i].BidTime = timestamp
+		energies[i].Priority = 1 - data.BatteryLife
 	}
 	input := energies[:tokenCount]
 	idList, err := bidOnEnergy(contract, input)
@@ -323,9 +327,9 @@ func bidOnEnergyold(contract *client.Contract, energyId string, bidPrice float64
 	sPriority := fmt.Sprintf("%v", 1 - batteryLife)
 	sAmount := fmt.Sprintf("%v", amount)
 
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// create id
-	bidId := fmt.Sprintf("%s%s%s-%d", sTimestamp, energyId, username, rand.Intn(10000))
+	bidId := fmt.Sprintf("%s%s%s-%d", sTimestamp, energyId, username, r.Intn(10000))
 
 	// fmt.Printf("bid id:%s, timestamp:%s, price:%s\n", energyId, sTimestamp, sBidPrice)
 	count := 0

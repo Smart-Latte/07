@@ -143,8 +143,8 @@ func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64
 			if loopCount > 5 {
 				log.Printf("auction end query error: %v, %v\n", energyId, err)
 				timestamp := time.Now().UnixNano()
-				rand.Seed(timestamp)
-				timer := time.NewTimer(time.Duration(rand.Intn(3)) * time.Second + time.Duration(rand.Intn(1000)) * time.Millisecond)
+				r := rand.New(rand.NewSource(timestamp))
+				timer := time.NewTimer(time.Duration(r.Intn(3)) * time.Second + time.Duration(r.Intn(1000)) * time.Millisecond)
 				<- timer.C
 				// return bidList, err
 			}
@@ -197,8 +197,8 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 			if (loopCount > 5) {
 				fmt.Printf("producer auction end error:%v\n", err)
 				timestamp := time.Now().UnixNano()
-				rand.Seed(timestamp)
-				timer := time.NewTimer(time.Duration(rand.Intn(3)) * time.Second + time.Duration(rand.Intn(1000)) * time.Millisecond)
+				r := rand.New(rand.NewSource(timestamp))
+				timer := time.NewTimer(time.Duration(r.Intn(3)) * time.Second + time.Duration(r.Intn(1000)) * time.Millisecond)
 				<- timer.C
 				//return "", err
 			}

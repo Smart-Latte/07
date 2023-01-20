@@ -29,8 +29,8 @@ func Create(contract *client.Contract, input Input) () {
 				}
 				//fmt.Printf("create Token Error: %s\n", err.Error())
 				errCount++
-				rand.Seed(time.Now().UnixNano())
-				timer := time.NewTimer(time.Duration(rand.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				timer := time.NewTimer(time.Duration(r.Intn(1000000000)) * time.Nanosecond / time.Duration(Speed))
 				<- timer.C
 			} else {
 				break createLoop
@@ -56,9 +56,9 @@ func createToken(contract *client.Contract, input Input) (Energy, error) {
 		largeCategory = "depletable"
 	}
 
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// create id
-	id := fmt.Sprintf("%d%s-%d", input.Timestamp, input.User, rand.Intn(10000))
+	id := fmt.Sprintf("%d%s-%d", input.Timestamp, input.User, r.Intn(10000))
 
 	sTimestamp := fmt.Sprintf("%v", input.Timestamp)
 	sLat := fmt.Sprintf("%v", input.Latitude)
