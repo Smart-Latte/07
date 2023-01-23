@@ -24,8 +24,9 @@ type Output struct {
 
 const (
 	earthRadius = 6378137.0
-	pricePerMater = 0.000001 //0.000001
-	kmPerBattery = 0.065 // (100-battery(%)) * kmPerBattery = x km
+	pricePerMater = 0.000001
+	kmPerBattery = 0.0325 // 0.065 // (100-battery(%)) * kmPerBattery = x km
+	rangemin = 3250.0
 	layout = "2006-01-02T15:04:05+09:00"
 )
 
@@ -34,10 +35,11 @@ func Bid(contract *client.Contract, data Data) ([]Energy, Data, error) {
 
 	search := 100 - data.BatteryLife * 100
 	searchRange := search * kmPerBattery * 1000 // 1000m->500mに変更
-	if (searchRange < 1300) {
-		searchRange = 1300
-	}
-	//searchRange := 200000
+	/*if (searchRange < 3250) {
+		searchRange = 3250
+	} // 次は半分とか？20%現実的じゃない*/
+	searchRange += rangemin
+	searchRange = 200000
 	fmt.Printf("searchRange:%g\n", searchRange)
 
 	var energies []Energy

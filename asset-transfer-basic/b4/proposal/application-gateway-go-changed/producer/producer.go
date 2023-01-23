@@ -75,11 +75,13 @@ var Speed int64
 var Interval int64
 var TokenLife int64
 var StartHour int
-var SolarOutput [dayNum][hourNum]float64
+var BigSolarOutput [dayNum][hourNum]float64
+var HouseSolarOutput [dayNum][hourNum]float64
 var WindSpeed [dayNum][hourNum] float64
 var SeaWindSpeed [dayNum][hourNum] float64
 
-func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, sOutput [dayNum][hourNum]float64, wSpeed [dayNum][hourNum]float64, 
+func AllProducers(start int64, end int64, difference int64, mySpeed int64, auctionInterval int64, life int64, 
+	bigSOutput [dayNum][hourNum]float64, houseSoutput [dayNum][hourNum]float64, wSpeed [dayNum][hourNum]float64, 
 	swSpeed [dayNum][hourNum]float64, hour int) {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
 	clientConnection := newGrpcConnection()
@@ -115,7 +117,8 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 	Interval = auctionInterval
 	TokenLife = life
 	StartHour = hour
-	SolarOutput = sOutput
+	BigSolarOutput = bigSOutput
+	HouseSolarOutput = houseSoutput
 	WindSpeed = wSpeed
 	SeaWindSpeed = swSpeed
 
@@ -130,8 +133,8 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 
 	for i := 0; i < dayNum; i++ {
 		for j := 0; j < hourNum; j++ {
-			solar := solarOut * SolarOutput[i][j]
-			dSolar := dummySolar * SolarOutput[i][j] * 4
+			solar := solarOut * BigSolarOutput[i][j]
+			dSolar := dummySolar * HouseSolarOutput[i][j] * 4
 			var seaWind float64
 			var dWind float64
 			if SeaWindSpeed[i][j] >= cutIn {
@@ -170,7 +173,7 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 	wg.Add(5)
 	go func() {
 		defer wg.Done()
-		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", solarOut, SolarOutput, 0)
+		Produce(contract, "real-solar-producer0", 40.2297629645958, 140.010266575019, "solar", solarOut, BigSolarOutput, 0)
 	}()
 	go func() {
 		defer wg.Done()
@@ -212,22 +215,22 @@ func AllProducers(start int64, end int64, difference int64, mySpeed int64, aucti
 		go func() {
 			defer wg.Done()
 			DummySolarProducer(contract, "solarProducerGroup0", 40.17463042136363, 40.203825668097228, 140.010266575019, 140.039441028931, 
-			"solar", dummySolar, SolarOutput, int64(10000))
+			"solar", dummySolar, HouseSolarOutput, int64(10000))
 		}()
 		go func() {
 			defer wg.Done()
 			DummySolarProducer(contract, "solarProducerGroup1", 40.17463042136363, 40.203825668097228, 140.039441028931, 140.068615482843, 
-			"solar", dummySolar, SolarOutput, int64(10001))
+			"solar", dummySolar, HouseSolarOutput, int64(10001))
 		}()
 		go func() {
 			defer wg.Done()
 			DummySolarProducer(contract, "solarProducerGroup2", 40.20382566809722, 40.2330209148308, 140.010266575019, 140.039441028931, 
-			"solar", dummySolar, SolarOutput, int64(10002))
+			"solar", dummySolar, HouseSolarOutput, int64(10002))
 		}()
 		go func() {
 			defer wg.Done()
 			DummySolarProducer(contract, "solarProducerGroup3", 40.20382566809722, 40.2330209148308, 140.039441028931, 140.068615482843, 
-			"solar", dummySolar, SolarOutput, int64(10003))
+			"solar", dummySolar, HouseSolarOutput, int64(10003))
 		}()
 		go func() {
 			defer wg.Done()

@@ -66,7 +66,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 			LargeCategory: "green", SmallCategory: "solar"},
 		{DocType: "cost", ID: "wind-power-cost", UnitPrice: 0.02,
 			LargeCategory: "green", SmallCategory: "wind"},
-		{DocType: "cost", ID: "thermal-power-cost", UnitPrice: 0.1, //0.1
+		{DocType: "cost", ID: "thermal-power-cost", UnitPrice: 0.,02 //0.1
 			LargeCategory: "depletable", SmallCategory: "thermal"},
 		
 	}

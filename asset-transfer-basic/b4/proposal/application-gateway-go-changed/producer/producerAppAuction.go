@@ -6,7 +6,7 @@ import (
 	"log"
 	"encoding/json"
 	"sort"
-	"math/rand"
+	//"math/rand"
 	//"sync"
 	
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -142,11 +142,12 @@ func auctionEndQuery(contract *client.Contract, energyId string, timestamp int64
 			loopCount++
 			if loopCount > 5 {
 				log.Printf("auction end query error: %v, %v\n", energyId, err)
-				timestamp := time.Now().UnixNano()
-				r := rand.New(rand.NewSource(timestamp))
-				timer := time.NewTimer(time.Duration(r.Intn(3)) * time.Second + time.Duration(r.Intn(1000)) * time.Millisecond)
-				<- timer.C
+				//timestamp := time.Now().UnixNano()
+				//r := rand.New(rand.NewSource(timestamp))
+				//timer := time.NewTimer(time.Duration(r.Intn(3)) * time.Second + time.Duration(r.Intn(1000)) * time.Millisecond)
+				//<- timer.C
 				// return bidList, err
+				panic(err)
 			}
 		} else {
 			if (len(evaluateResult) == 0) {
@@ -196,10 +197,11 @@ func auctionEndTransaction(contract *client.Contract, energyInput EndInput, bidI
 			loopCount++
 			if (loopCount > 5) {
 				fmt.Printf("producer auction end error:%v\n", err)
-				timestamp := time.Now().UnixNano()
-				r := rand.New(rand.NewSource(timestamp))
-				timer := time.NewTimer(time.Duration(r.Intn(3)) * time.Second + time.Duration(r.Intn(1000)) * time.Millisecond)
-				<- timer.C
+				// timestamp := time.Now().UnixNano()
+				//r := rand.New(rand.NewSource(timestamp))
+				//timer := time.NewTimer(time.Duration(r.Intn(3)) * time.Second + time.Duration(r.Intn(1000)) * time.Millisecond)
+				//<- timer.C
+				panic(err)
 				//return "", err
 			}
 			// log.Printf("producer auction end error: %v\n", err.Error())
